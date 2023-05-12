@@ -10,7 +10,7 @@
 //Returns: None
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 //__global__ void compute(vector3 *hVel,vector3 *hPos,double *mass)
-__global__ void compute(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* values,vector3** accels){
+__global__ void compute1(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* values,vector3** accels){
 	//make an acceleration matrix which is NUMENTITIES squared in size;
 	int j,k;
 	int i =  blockDim.x * blockIdx.x +  threadIdx.x;
@@ -22,6 +22,14 @@ __global__ void compute(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* 
 	if (i < NUMENTITIES){
 		accels[i]=&values[i*NUMENTITIES];
 	}
+
+	//free(accels);
+	//free(values);
+}
+
+__global__ void compute2(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* values,vector3** accels){
+	int j,k;
+	int i =  blockDim.x * blockIdx.x +  threadIdx.x;
 	//first compute the pairwise accelerations.  Effect is on the first argument.
 	if (i < NUMENTITIES){
 		for (j=0;j<NUMENTITIES;j++){
@@ -41,7 +49,14 @@ __global__ void compute(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* 
 
 		}
 	}
-	//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
+
+}
+
+
+__global__ void compute3(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* values,vector3** accels){
+	int j,k;
+	int i =  blockDim.x * blockIdx.x +  threadIdx.x;
+		//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
 	if (i < NUMENTITIES){
 		vector3 accel_sum={0,0,0};
 		for (j=0;j<NUMENTITIES;j++){
@@ -56,6 +71,4 @@ __global__ void compute(vector3 *d_hVel,vector3 *d_hPos,double *d_mass,vector3* 
 		}
 	}
 
-	//free(accels);
-	//free(values);
 }

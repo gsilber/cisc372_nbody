@@ -136,7 +136,11 @@ int main(int argc, char **argv)
 	cudaDeviceSynchronize();
 	for (t_now=0;t_now<DURATION;t_now+=INTERVAL){
 		//compute();
-		compute<<<dimGrid,dimBlock>>>(d_hVel,d_hPos,d_mass,values,accels);
+		compute1<<<dimGrid,dimBlock>>>(d_hVel,d_hPos,d_mass,values,accels);
+		cudaDeviceSynchronize();
+		compute2<<<dimGrid,dimBlock>>>(d_hVel,d_hPos,d_mass,values,accels);
+		cudaDeviceSynchronize();
+		compute3<<<dimGrid,dimBlock>>>(d_hVel,d_hPos,d_mass,values,accels);
 		cudaDeviceSynchronize();
 		//compute<<<dimGrid,dimBlock>>>(d_hVel,d_hPos,d_mass);
 	}
