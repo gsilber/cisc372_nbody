@@ -51,7 +51,6 @@ __global__ void row_summation(int num_entities, double* accels, double* vel_x, d
     }
 }
 
-
 void compute()
 {
     double* d_pos_x;
