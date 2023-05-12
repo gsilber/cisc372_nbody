@@ -1,3 +1,9 @@
+/*
+	CISC372 Assignment 4: Lost in space 
+	Contributors: Patrick Harris, Robert Reardon
+	File: planets.h
+*/
+
 #ifndef __PLANETS_H__
 #define __PLANETS_H__
 #define SUN {0.0,0.0,0.0,        0.0,0.0,0.0,      1.989e30 }

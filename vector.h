@@ -1,3 +1,9 @@
+/*
+	CISC372 Assignment 4: Lost in space 
+	Contributors: Patrick Harris, Robert Reardon
+	File: vector.h
+*/
+
 #ifndef __TYPES_H__
 #define __TYPES_H__
 

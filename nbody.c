@@ -1,3 +1,9 @@
+/*
+	CISC372 Assignment 4: Lost in space 
+	Contributors: Patrick Harris, Robert Reardon
+	File: nbody.c
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
