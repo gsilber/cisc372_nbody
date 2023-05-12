@@ -51,3 +51,65 @@ __global__ void row_summation(int num_entities, double* accels, double* vel_x, d
     }
 }
 
+
+void compute()
+{
+    double* d_pos_x;
+    double* d_pos_y;
+    double* d_pos_z;
+    double* d_mass;
+    double* d_accels;
+    double* d_vel_x;
+    double* d_vel_y;
+    double* d_vel_z;
+    int size = NUMENTITIES * sizeof(double);
+
+    // Allocate device memory
+    cudaMalloc((void**)&d_pos_x, size);
+    cudaMalloc((void**)&d_pos_y, size);
+    cudaMalloc((void**)&d_pos_z, size);
+    cudaMalloc((void**)&d_mass, size);
+    cudaMalloc((void**)&d_accels, size * NUMENTITIES * 3);
+    cudaMalloc((void**)&d_vel_x, size);
+    cudaMalloc((void**)&d_vel_y, size);
+    cudaMalloc((void**)&d_vel_z, size);
+    // Copy host memory to device memory
+	cudaMemcpy(d_pos_x, hPos[0], size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_pos_y, hPos[1], size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_pos_z, hPos[2], size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_mass, mass, size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_vel_x, hVel[0], size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_vel_y, hVel[1], size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_vel_z, hVel[2], size, cudaMemcpyHostToDevice);
+
+	// Define grid and block dimensions for pairwise acceleration computation
+	dim3 blockDim(16, 16);
+	dim3 gridDim((NUMENTITIES + blockDim.x - 1) / blockDim.x, (NUMENTITIES + blockDim.y - 1) / blockDim.y);
+
+	// Compute pairwise accelerations
+	pairwise_acceleration<<<gridDim, blockDim>>>(NUMENTITIES, d_pos_x, d_pos_y, d_pos_z, d_mass, d_accels);
+
+	// Define grid dimensions for row summation
+	dim3 gridDim2((NUMENTITIES + blockDim.x - 1) / blockDim.x);
+
+	// Sum up rows to get effect on each entity, then update velocity and position
+	row_summation<<<gridDim2, blockDim.x>>>(NUMENTITIES, d_accels, d_vel_x, d_vel_y, d_vel_z, d_pos_x, d_pos_y, d_pos_z);
+
+	// Copy device memory back to host memory
+	cudaMemcpy(hPos[0], d_pos_x, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hPos[1], d_pos_y, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hPos[2], d_pos_z, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hVel[0], d_vel_x, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hVel[1], d_vel_y, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hVel[2], d_vel_z, size, cudaMemcpyDeviceToHost);
+
+	// Free device memory
+	cudaFree(d_pos_x);
+	cudaFree(d_pos_y);
+	cudaFree(d_pos_z);
+	cudaFree(d_mass);
+	cudaFree(d_accels);
+	cudaFree(d_vel_x);
+	cudaFree(d_vel_y);
+	cudaFree(d_vel_z);
+}
