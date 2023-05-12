@@ -7,16 +7,18 @@
 #ifndef CUDA_H
 #define CUDA_H
 
-// Include necessary libraries
-#include <stdio.h>
 #include <stdlib.h>
-#include <cuda.h>
+#include <math.h>
+#include <cuda_runtime.h>
 
-// Define constants
-#define N 10
-#define THREADS_PER_BLOCK 2
+// Constants
+#define GRAV_CONSTANT 6.67430e-11
+#define NUMENTITIES 100
+#define INTERVAL 0.01
 
-// Declare functions
-
+// Functions
+__global__ void pairwise_acceleration(int num_entities, double* pos_x, double* pos_y, double* pos_z, double* mass, double* accels);
+__global__ void row_summation(int num_entities, double* accels, double* vel_x, double* vel_y, double* vel_z, double* pos_x, double* pos_y, double* pos_z);
+//void compute();
 
 #endif /* CUDA_H */
