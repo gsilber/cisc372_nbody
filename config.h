@@ -1,3 +1,8 @@
+/*
+	CISC372 Assignment 4: Lost in space 
+	Contributors: Patrick Harris, Robert Reardon
+	File: config.h
+*/
 
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
