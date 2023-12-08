@@ -8,7 +8,7 @@
 __global__ void compute_accels(vector3* accels) {
 
     for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
-        accels[i][0] = 1.0;
+        accels[i][0] += 1.0;
     }
 }
 
@@ -26,6 +26,13 @@ void compute(){
 
     vector3* d_values;
     cudaMalloc((void **)&d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+
+    	for (int i = 0; i < NUMENTITIES; i++) {
+            for(int j = 0; j < NUMENTITIES; j++) {
+                h_accels[i][j][0] = 3.0;
+            }
+        }
+
     cudaMemcpy(d_values, h_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyHostToDevice);
 
     compute_accels<<<1,1>>>(d_values);
