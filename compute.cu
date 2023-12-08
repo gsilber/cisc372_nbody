@@ -5,12 +5,25 @@
 
 #include<stdio.h>
 
+#define THREADS_PER_BLOCK 256
+
 __global__ void gpu_compute_accels(vector3** accels) {
 
-    for(int i = 0; i < NUMENTITIES; i++) {
+/*     for(int i = 0; i < NUMENTITIES; i++) {
         for(int j = 0; j < NUMENTITIES; j++) {
-            accels[i][j][0] += 3.0;
+            accels[i][j][0] = threadIdx.x;
         }
+    } */
+
+    // the entity being accelerated
+    entityIndex = blockIdx.x;
+
+    // the entity causing the acceleration
+    otherEntityIndex = blockIdx.y * THREADS_PER_BLOCK + threadIdx.x
+
+    // if there are more threads in a block than there are entities, it would be possible for them to go out of bounds
+    if(otherEntityIndex < NUMENTITIES) {
+        accels[entityIndex][otherEntityIndex][0] = blockIdx.y * THREADS_PER_BLOCK + threadIdx.x;
     }
 
     //first compute the pairwise accelerations.  Effect is on the first argument.
@@ -51,8 +64,17 @@ void compute_accels(vector3** h_accels) {
         cudaMemcpy(d_accels+i, &d_accel_row, sizeof(vector3*), cudaMemcpyHostToDevice);
     }
 
+    // each entity needs to compute a vector for each entity, so we have to set up our grid like this
+    // imagine we have 80 entities to compute accels for. By nature of the accel calculation we need to compute the accel of each entity on each entity
+    // now imagine that we only can do 25 accels for each block. Each entity needs to compute accels for 80/25 rounded up.
+    // so we have an 80 x ceil(80x25) grid of blocks
+    // 80 = NUM ENTITIES | 25 = THREADS PER BLOCK
+    dim3 gridSize = dim3(NUMENTITIES, ceil((float)NUMENTITIES / (float)THREADS_PER_BLOCK), 1);
+
     // call the kernel
-    gpu_compute_accels<<<1,1>>>(d_accels);
+    gpu_compute_accels<<<gridSize, NUMENTITIES>>>(d_accels);
+
+    //printf("grid x: %d | grid y: %d | grid z: %d | TPB: %d\n", gridSize.x, gridSize.y, gridSize.z, THREADS_PER_BLOCK);
 
     // copy the gpu acceleration matrix back to the host acceleration matrix
     for (int i = 0; i < NUMENTITIES; i++) {
@@ -89,7 +111,7 @@ void compute(){
 
     for (int i = 0; i < NUMENTITIES; i++) {
         for(int j = 0; j < NUMENTITIES; j++) {
-            h_accels[i][j][0] = 10.0;
+            h_accels[i][j][0] = 0.0;
         }
     }
 
