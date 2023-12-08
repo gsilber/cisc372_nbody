@@ -5,10 +5,10 @@
 
 #include<stdio.h>
 
-__global__ void compute_accels(vector3* positions) {
+__global__ void compute_accels(vector3* accels) {
 
-    for(int i = 0; i < NUMENTITIES; i++) {
-        positions[i][0] = positions[i][0] + 1.0;
+    for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
+        accels[i][0] = 1.0;
     }
 }
 
@@ -18,35 +18,38 @@ __global__ void compute_accels(vector3* positions) {
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
 
+	//make an acceleration matrix which is NUMENTITIES squared in size
+	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
+	vector3** h_accels=(vector3**)malloc(sizeof(vector3*)*NUMENTITIES);
+	for (int i = 0; i < NUMENTITIES; i++)
+		h_accels[i]=&h_values[i*NUMENTITIES];
+
+    vector3* d_values;
+    cudaMalloc((void **)&d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+    cudaMemcpy(d_values, h_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyHostToDevice);
+
+    compute_accels<<<1,1>>>(d_values);
+
+    cudaMemcpy(h_values, d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
+    
+    for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
+        if(i % NUMENTITIES == 0) printf("\n");
+        printf("%f ", h_values[i][0]);
+    }
+    printf("\n");
+
     // allocate device memory of velocity, position, and mass
 	cudaMalloc((void **)&d_hVel, sizeof(vector3) * NUMENTITIES);
     cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 
     cudaMalloc((void **)&d_hPos, sizeof(vector3) * NUMENTITIES);
     cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-    
-    printf("Before GPU\n");
-    for (int i = 0; i < NUMENTITIES; i++) {
-        printf("%f\n", hPos[i][0]);
-    }
-
-    compute_accels<<<1,1>>>(d_hPos);
-
-    cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-    
-    printf("After GPU\n");
-    for (int i = 0; i < NUMENTITIES; i++) {
-        printf("%f\n", hPos[i][0]);
-    }
 
     cudaMalloc((void **)&d_mass, sizeof(double) * NUMENTITIES);
     cudaMemcpy(d_mass, mass, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 
-	//make an acceleration matrix which is NUMENTITIES squared in size
-	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
-	vector3** h_accels=(vector3**)malloc(sizeof(vector3*)*NUMENTITIES);
-	for (int i = 0; i < NUMENTITIES; i++)
-		h_accels[i]=&h_values[i*NUMENTITIES];
+    //compute_accels<<<1,1>>>(d_hPos);
+    //cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 	
     //first compute the pairwise accelerations.  Effect is on the first argument.
 	for (int i = 0; i < NUMENTITIES; i++){
