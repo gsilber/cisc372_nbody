@@ -5,39 +5,34 @@
 
 #include<stdio.h>
 
-/* __global__ void compute_accels(vector3* accels) {
-
-    for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
-        accels[i][0] += 1.0;
-    }
-} */
-
-__global__ void compute_accels(vector3** accels) {
+__global__ void gpu_compute_accels(vector3** accels) {
 
     for(int i = 0; i < NUMENTITIES; i++) {
         for(int j = 0; j < NUMENTITIES; j++) {
             accels[i][j][0] += 3.0;
         }
     }
+
+    //first compute the pairwise accelerations.  Effect is on the first argument.
+/* 	for (int i = 0; i < NUMENTITIES; i++){
+		for (int j = 0; j < NUMENTITIES; j++){
+			if (i==j) {
+				FILL_VECTOR(h_accels[i][j],0,0,0);
+			}
+			else{
+				vector3 distance;
+				for (int k = 0; k < 3; k++) distance[k]=hPos[i][k]-hPos[j][k];
+				double magnitude_sq=distance[0]*distance[0]+distance[1]*distance[1]+distance[2]*distance[2];
+				double magnitude=sqrt(magnitude_sq);
+				double accelmag=-1*GRAV_CONSTANT*mass[j]/magnitude_sq;
+				FILL_VECTOR(h_accels[i][j],accelmag*distance[0]/magnitude,accelmag*distance[1]/magnitude,accelmag*distance[2]/magnitude);
+			}
+		}
+	} */
+
 }
 
-//compute: Updates the positions and locations of the objects in the system based on gravity.
-//Parameters: None
-//Returns: None
-//Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
-void compute(){
-
-	// make an acceleration matrix which is NUMENTITIES squared in size
-	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
-	vector3** h_accels=(vector3**)malloc(sizeof(vector3*)*NUMENTITIES);
-	for (int i = 0; i < NUMENTITIES; i++)
-		h_accels[i]=&h_values[i*NUMENTITIES];
-
-    for (int i = 0; i < NUMENTITIES; i++) {
-        for(int j = 0; j < NUMENTITIES; j++) {
-            h_accels[i][j][0] = 2.0;
-        }
-    }
+void compute_accels(vector3** h_accels) {
 
     // create that accleration matrix on the GPU
     vector3** d_accels;
@@ -57,7 +52,7 @@ void compute(){
     }
 
     // call the kernel
-    compute_accels<<<1,1>>>(d_accels);
+    gpu_compute_accels<<<1,1>>>(d_accels);
 
     // copy the gpu acceleration matrix back to the host acceleration matrix
     for (int i = 0; i < NUMENTITIES; i++) {
@@ -78,6 +73,25 @@ void compute(){
         printf("\n");
     }
     printf("\n");
+}
+
+//compute: Updates the positions and locations of the objects in the system based on gravity.
+//Parameters: None
+//Returns: None
+//Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
+void compute(){
+
+	// make an acceleration matrix which is NUMENTITIES squared in size
+	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
+	vector3** h_accels=(vector3**)malloc(sizeof(vector3*)*NUMENTITIES);
+	for (int i = 0; i < NUMENTITIES; i++)
+		h_accels[i]=&h_values[i*NUMENTITIES];
+
+    for (int i = 0; i < NUMENTITIES; i++) {
+        for(int j = 0; j < NUMENTITIES; j++) {
+            h_accels[i][j][0] = 10.0;
+        }
+    }
 
     // allocate device memory of velocity, position, and mass
 	cudaMalloc((void **)&d_hVel, sizeof(vector3) * NUMENTITIES);
@@ -88,10 +102,9 @@ void compute(){
 
     cudaMalloc((void **)&d_mass, sizeof(double) * NUMENTITIES);
     cudaMemcpy(d_mass, mass, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-
-    //compute_accels<<<1,1>>>(d_hPos);
-    //cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 	
+    compute_accels(h_accels);
+
     //first compute the pairwise accelerations.  Effect is on the first argument.
 	for (int i = 0; i < NUMENTITIES; i++){
 		for (int j = 0; j < NUMENTITIES; j++){
