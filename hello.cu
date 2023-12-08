@@ -28,7 +28,6 @@ __global__ void vector_add(float *out, float *a, float *b) {
             out[i] += shared_a[i] * shared_b[j];
         }
     }
-    //out[threadIndex] = shared_a;
 }
 
 int main() {
