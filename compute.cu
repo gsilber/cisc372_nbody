@@ -40,43 +40,37 @@ void compute(){
     }
 
     // create that accleration matrix on the GPU
-    vector3* d_values;
-    cudaMalloc((void **)&d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
-
     vector3** d_accels;
-    cudaMalloc((void **)&d_accels, sizeof(vector3*) * NUMENTITIES);
+    cudaMalloc((void **)&d_accels, sizeof(vector3*) * NUMENTITIES); // array of rows (arrays)
 
     for (int i = 0; i < NUMENTITIES; i++) {
         vector3* d_accel_row;
+
+        // allocate space for the row on gpu
         cudaMalloc((void **)&d_accel_row, sizeof(vector3) * NUMENTITIES);
-        cudaMemcpy(d_accels+i, &d_accel_row, sizeof(vector3*), cudaMemcpyHostToDevice);
+
+        // copy values from host row to that row in gpu
         cudaMemcpy(d_accel_row, h_accels[i], sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+
+        // put that row into the matrix on the gpu
+        cudaMemcpy(d_accels+i, &d_accel_row, sizeof(vector3*), cudaMemcpyHostToDevice);
     }
 
-    //cudaMemcpy(d_values, h_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyHostToDevice);
-
-    //compute_accels<<<1,1>>>(d_values);
+    // call the kernel
     compute_accels<<<1,1>>>(d_accels);
 
-    printf("got through kernel\n");
-
+    // copy the gpu acceleration matrix back to the host acceleration matrix
     for (int i = 0; i < NUMENTITIES; i++) {
         vector3* d_accel_row;
 
+        // copy the address of the row on the GPU back to CPU
         cudaMemcpy(&d_accel_row, d_accels+i, sizeof(vector3*), cudaMemcpyDeviceToHost);
-        printf("copied the row address back\n");
+        
+        // copy the data in the row from the GPU to the row on CPU matrix
         cudaMemcpy(h_accels[i], d_accel_row, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-        printf("copied the row data back\n");
     }
 
-//    cudaMemcpy(h_values, d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
-    
-/*     for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
-        if(i % NUMENTITIES == 0) printf("\n");
-        printf("%f ", h_values[i][0]);
-    } */
-
-
+    // print out the matrix after GPU operation
     for (int i = 0; i < NUMENTITIES; i++) {
         for(int j = 0; j < NUMENTITIES; j++) {
             printf("%1.1f ", h_accels[i][j][0]);
