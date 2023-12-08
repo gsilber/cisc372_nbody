@@ -5,10 +5,19 @@
 
 #include<stdio.h>
 
-__global__ void compute_accels(vector3* accels) {
+/* __global__ void compute_accels(vector3* accels) {
 
     for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
         accels[i][0] += 1.0;
+    }
+} */
+
+__global__ void compute_accels(vector3** accels) {
+
+    for(int i = 0; i < NUMENTITIES; i++) {
+        for(int j = 0; j < NUMENTITIES; j++) {
+            accels[i][j][0] += 3.0;
+        }
     }
 }
 
@@ -18,30 +27,61 @@ __global__ void compute_accels(vector3* accels) {
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
 
-	//make an acceleration matrix which is NUMENTITIES squared in size
+	// make an acceleration matrix which is NUMENTITIES squared in size
 	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
 	vector3** h_accels=(vector3**)malloc(sizeof(vector3*)*NUMENTITIES);
 	for (int i = 0; i < NUMENTITIES; i++)
 		h_accels[i]=&h_values[i*NUMENTITIES];
 
+    for (int i = 0; i < NUMENTITIES; i++) {
+        for(int j = 0; j < NUMENTITIES; j++) {
+            h_accels[i][j][0] = 2.0;
+        }
+    }
+
+    // create that accleration matrix on the GPU
     vector3* d_values;
     cudaMalloc((void **)&d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
 
-    	for (int i = 0; i < NUMENTITIES; i++) {
-            for(int j = 0; j < NUMENTITIES; j++) {
-                h_accels[i][j][0] = 3.0;
-            }
-        }
+    vector3** d_accels;
+    cudaMalloc((void **)&d_accels, sizeof(vector3*) * NUMENTITIES);
 
-    cudaMemcpy(d_values, h_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyHostToDevice);
+    for (int i = 0; i < NUMENTITIES; i++) {
+        vector3* d_accel_row;
+        cudaMalloc((void **)&d_accel_row, sizeof(vector3) * NUMENTITIES);
+        cudaMemcpy(d_accels+i, &d_accel_row, sizeof(vector3*), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_accel_row, h_accels[i], sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+    }
 
-    compute_accels<<<1,1>>>(d_values);
+    //cudaMemcpy(d_values, h_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyHostToDevice);
 
-    cudaMemcpy(h_values, d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
+    //compute_accels<<<1,1>>>(d_values);
+    compute_accels<<<1,1>>>(d_accels);
+
+    printf("got through kernel\n");
+
+    for (int i = 0; i < NUMENTITIES; i++) {
+        vector3* d_accel_row;
+
+        cudaMemcpy(&d_accel_row, d_accels+i, sizeof(vector3*), cudaMemcpyDeviceToHost);
+        printf("copied the row address back\n");
+        cudaMemcpy(h_accels[i], d_accel_row, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+        printf("copied the row data back\n");
+    }
+
+//    cudaMemcpy(h_values, d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
     
-    for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
+/*     for(int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
         if(i % NUMENTITIES == 0) printf("\n");
         printf("%f ", h_values[i][0]);
+    } */
+
+
+    for (int i = 0; i < NUMENTITIES; i++) {
+        for(int j = 0; j < NUMENTITIES; j++) {
+            printf("%1.1f ", h_accels[i][j][0]);
+        }
+        printf("\n");
     }
     printf("\n");
 
