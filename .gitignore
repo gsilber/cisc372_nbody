@@ -1,2 +1,5 @@
 hello.cu
 *.o
+serial
+parallel
+nbody
