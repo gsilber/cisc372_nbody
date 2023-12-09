@@ -8,12 +8,12 @@
 #define WEEK 			DAY*7
 #define YEAR 			DAY*365
 //Configurable
-#define NUMASTEROIDS 5000
+#define NUMASTEROIDS 3000
 #define GRAV_CONSTANT 6.67e-11 //the gravitational constant
 #define MAX_DISTANCE 5000.0
 #define MAX_VELOCITY 50000.0
 #define MAX_MASS 938e18  //approximate mass of ceres.
-#define DURATION (2 * DAY)
+#define DURATION (10 * DAY)
 #define INTERVAL DAY
 //End Configurable
 
