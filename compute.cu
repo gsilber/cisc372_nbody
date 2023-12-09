@@ -5,29 +5,28 @@
 
 #include<stdio.h>
 
-#define THREADS_PER_BLOCK 256
+//#undef DEBUG
+#define DEBUG 1
 
-__global__ void gpu_compute_accels(vector3** accels, vector3* positions, double* mass) {
+#define THREADS_PER_BLOCK 256
+#define VECTOR_SIZE 3
+#define BLOCK_WIDTH 16
+
+__global__ void gpu_compute_accels(vector3** accels, vector3* hPos, double* mass) {
 
     // the entity being accelerated
-    int entityIndex = blockIdx.x;
+    int entityIndex = blockIdx.x * BLOCK_WIDTH + threadIdx.x;
 
     // the entity causing the acceleration
-    int otherEntityIndex = blockIdx.y * THREADS_PER_BLOCK + threadIdx.x;
+    int otherEntityIndex = blockIdx.y * BLOCK_WIDTH + threadIdx.y;
 
-    // if there are more threads in a block than there are entities, it would be possible for them to go out of bounds
-    if(otherEntityIndex < NUMENTITIES) {
-        accels[entityIndex][otherEntityIndex][0] = blockIdx.y * THREADS_PER_BLOCK + threadIdx.x;
-
-        // the old serial calculations with indexes plugged in in place of i and j
-        // further parallelizing to split the k loop among 3 threads would be cool but 
-        // I already have 2 other programming assignments on the same scale as this one due in three days!
+    if(entityIndex < NUMENTITIES && otherEntityIndex < NUMENTITIES) {
         if (entityIndex == otherEntityIndex) {
-            FILL_VECTOR(accels[entityIndex][otherEntityIndex],0,0,0);
-        }
+				FILL_VECTOR(accels[entityIndex][otherEntityIndex],0,0,0);
+			}
         else{
             vector3 distance;
-            for (int k = 0; k < 3; k++) distance[k]=positions[entityIndex][k]-positions[otherEntityIndex][k];
+            for (int k=0;k<3;k++) distance[k]=hPos[entityIndex][k]-hPos[otherEntityIndex][k];
             double magnitude_sq=distance[0]*distance[0]+distance[1]*distance[1]+distance[2]*distance[2];
             double magnitude=sqrt(magnitude_sq);
             double accelmag=-1*GRAV_CONSTANT*mass[otherEntityIndex]/magnitude_sq;
@@ -61,19 +60,16 @@ void compute_accels(vector3** h_accels) {
 
     // create the mass array on the GPU
     cudaMalloc((void **)&d_mass, sizeof(double) * NUMENTITIES);
-    cudaMemcpy(d_mass, mass, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mass, mass, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
 
-    // each entity needs to compute a vector for each entity, so we have to set up our grid like this
-    // imagine we have 80 entities to compute accels for. By nature of the accel calculation we need to compute the accel of each entity on each entity
-    // now imagine that we only can do 25 accels for each block. Each entity needs to compute accels for 80/25 rounded up.
-    // so we have an 80 x ceil(80x25) grid of blocks
-    // 80 = NUM ENTITIES | 25 = THREADS PER BLOCK
-    dim3 gridSize = dim3(NUMENTITIES, ceil((float)NUMENTITIES / (float)THREADS_PER_BLOCK), 1);
+    dim3 blockSize = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
+    dim3 gridSize = dim3(ceil((float)NUMENTITIES / (float)BLOCK_WIDTH), ceil((float)NUMENTITIES / (float)BLOCK_WIDTH), 1);
+
+    printf("grid size x:%d y:%d z:%d\n", gridSize.x, gridSize.y, gridSize.z);
+    printf("block size x:%d y:%d z:%d\n", blockSize.x, blockSize.y, blockSize.z);
 
     // call the kernel
-    gpu_compute_accels<<<gridSize, NUMENTITIES>>>(d_accels, d_hPos, d_mass);
-
-    //printf("grid x: %d | grid y: %d | grid z: %d | TPB: %d\n", gridSize.x, gridSize.y, gridSize.z, THREADS_PER_BLOCK);
+    gpu_compute_accels<<<gridSize, blockSize>>>(d_accels, d_hPos, d_mass);
 
     // copy the gpu acceleration matrix back to the host acceleration matrix
     for (int i = 0; i < NUMENTITIES; i++) {
@@ -87,13 +83,15 @@ void compute_accels(vector3** h_accels) {
     }
 
     // print out the matrix after GPU operation
+    #ifdef DEBUG
     for (int i = 0; i < NUMENTITIES; i++) {
         for(int j = 0; j < NUMENTITIES; j++) {
-            printf("%1.1f ", h_accels[i][j][0]);
+            printf("%32.32f\n", h_accels[i][j][0]);
         }
         printf("\n");
     }
     printf("\n");
+    #endif
 }
 
 //compute: Updates the positions and locations of the objects in the system based on gravity.
@@ -101,6 +99,8 @@ void compute_accels(vector3** h_accels) {
 //Returns: None
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
+
+    printf("In compute.cu\n");
 
 	// make an acceleration matrix which is NUMENTITIES squared in size
 	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
@@ -110,7 +110,9 @@ void compute(){
 
     for (int i = 0; i < NUMENTITIES; i++) {
         for(int j = 0; j < NUMENTITIES; j++) {
-            h_accels[i][j][0] = 0.0;
+            for(int k = 0; k < VECTOR_SIZE; k++) {
+                h_accels[i][j][k] = 0.0;
+            }
         }
     }
 
@@ -120,22 +122,13 @@ void compute(){
 
     compute_accels(h_accels);
 
-    //first compute the pairwise accelerations.  Effect is on the first argument.
-/* 	for (int i = 0; i < NUMENTITIES; i++){
-		for (int j = 0; j < NUMENTITIES; j++){
-			if (i==j) {
-				FILL_VECTOR(h_accels[i][j],0,0,0);
-			}
-			else{
-				vector3 distance;
-				for (int k = 0; k < 3; k++) distance[k]=hPos[i][k]-hPos[j][k];
-				double magnitude_sq=distance[0]*distance[0]+distance[1]*distance[1]+distance[2]*distance[2];
-				double magnitude=sqrt(magnitude_sq);
-				double accelmag=-1*GRAV_CONSTANT*mass[j]/magnitude_sq;
-				FILL_VECTOR(h_accels[i][j],accelmag*distance[0]/magnitude,accelmag*distance[1]/magnitude,accelmag*distance[2]/magnitude);
-			}
-		}
-	} */
+/*     for (int i = 0; i < NUMENTITIES; i++) {
+        for(int j = 0; j < NUMENTITIES; j++) {
+            for(int k = 0; k < VECTOR_SIZE; k++) {
+                printf("%32.32f\n", h_accels[i][j][0]);
+            }
+        }
+    } */
 
     //sum up the rows of our matrix to get effect on each entity, then update velocity and position.
 	for (int i = 0; i < NUMENTITIES; i++){
