@@ -14,7 +14,7 @@
 
 __global__ void gpu_compute_accels(vector3* accels, vector3* hPos, double* mass) {
 
-    // TODO: shared memory hopefully speeds things up
+    // shared memory hopefully speeds things up
     __shared__ double shared_mass[BLOCK_WIDTH];
     __shared__ vector3 shared_hPos_x[BLOCK_WIDTH];
     __shared__ vector3 shared_hPos_y[BLOCK_WIDTH];
@@ -67,6 +67,8 @@ void compute_accels(vector3* h_values, vector3* d_values) {
     // copy the gpu acceleration matrix back to the host acceleration matrix
     cudaMemcpy(h_values, d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
 
+    printf("GRID SIZE: %d\n", gridSize.x);
+
     // print out the matrix after GPU operation
     for (int i = 0; i < NUMENTITIES * NUMENTITIES; i++) {
         printf("%32.32f\n", h_values[i][0]);
@@ -77,8 +79,47 @@ void compute_accels(vector3* h_values, vector3* d_values) {
     #endif
 }
 
-__global__ void gpu_advance_simulation(vector3** accels, vector3* hPos, double* mass) {
+__global__ void gpu_advance_simulation(vector3* d_values, vector3* hVel, vector3* hPos) {
+    
+    int entityIndex = (blockIdx.x * blockDim.x + threadIdx.x) * NUMENTITIES;
 
+    for(int i = entityIndex + 1; i < entityIndex + NUMENTITIES; i++) {
+        d_values[entityIndex][0] += d_values[i][0];
+        d_values[entityIndex][1] += d_values[i][1];
+        d_values[entityIndex][2] += d_values[i][2];
+    }
+
+    for (int k = 0; k < 3; k++){
+        hVel[blockIdx.x * blockDim.x + threadIdx.x][k]+=d_values[entityIndex][k]*INTERVAL;
+        hPos[blockIdx.x * blockDim.x + threadIdx.x][k]+=hVel[blockIdx.x * blockDim.x + threadIdx.x][k]*INTERVAL;
+    }
+}
+
+void advance_simulation(vector3* h_values, vector3* d_values, vector3* d_hVel, vector3* d_hPos) {
+
+    dim3 blockSize = dim3(256, 1, 1);
+    dim3 gridSize = dim3(ceil((float)NUMENTITIES / 256), 1, 1);
+
+    gpu_advance_simulation<<<gridSize, blockSize>>>(d_values, d_hVel, d_hPos);
+
+    cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+
+    #ifdef DEBUG
+    printf("GRID SIZE: %d\n", gridSize.x);
+    // copy the gpu acceleration matrix back to the host acceleration matrix
+    cudaMemcpy(h_values, d_values, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
+
+    // print out the matrix after GPU operation
+    for (int i = 0; i < NUMENTITIES; i+=1) {
+        printf("%10.32f\n",hVel[i][0]);
+        if (i % NUMENTITIES == 0) {
+            //printf("%32.32f\n", h_values[i][0]);
+            //printf("%32.1f %32.1f %32.32f\n", h_values[i][0], h_values[i][1], h_values[i][2]);
+        }
+    }
+    printf("\n");
+    #endif
 }
 
 //compute: Updates the positions and locations of the objects in the system based on gravity.
@@ -118,25 +159,12 @@ void compute(){
     cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 
     compute_accels(h_values, d_values);
+    advance_simulation(h_values, d_values, d_hVel, d_hPos);
 
-    //sum up the rows of our matrix to get effect on each entity, then update velocity and position.
-	for (int i = 0; i < NUMENTITIES; i++){
-		vector3 accel_sum={0,0,0};
-		for (int j = 0; j < NUMENTITIES; j++){
-			for (int k = 0; k < 3; k++)
-				accel_sum[k]+=h_accels[i][j][k];
-		}
-		//compute the new velocity based on the acceleration and time interval
-		//compute the new position based on the velocity and time interval
-		for (int k = 0; k < 3; k++){
-			hVel[i][k]+=accel_sum[k]*INTERVAL;
-			hPos[i][k]+=hVel[i][k]*INTERVAL;
-		}
-	}
-	
     free(h_accels);
 	free(h_values);
 
+    cudaFree(d_values);
     cudaFree(d_hVel);
     cudaFree(d_hPos);
     cudaFree(d_mass);
