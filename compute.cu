@@ -5,8 +5,8 @@
 
 #include<stdio.h>
 
-//#undef DEBUG
-#define DEBUG 1
+#undef DEBUG
+//#define DEBUG 1
 
 #define THREADS_PER_BLOCK 256
 #define VECTOR_SIZE 3
@@ -14,11 +14,30 @@
 
 __global__ void gpu_compute_accels(vector3** accels, vector3* hPos, double* mass) {
 
+    // TODO: shared memory hopefully speeds things up
+    __shared__ double shared_mass[BLOCK_WIDTH];
+    __shared__ vector3 shared_hPos_x[BLOCK_WIDTH];
+    __shared__ vector3 shared_hPos_y[BLOCK_WIDTH];
+
     // the entity being accelerated
     int entityIndex = blockIdx.x * BLOCK_WIDTH + threadIdx.x;
 
     // the entity causing the acceleration
     int otherEntityIndex = blockIdx.y * BLOCK_WIDTH + threadIdx.y;
+
+    if (threadIdx.x == 0) {
+        shared_mass[threadIdx.y] = mass[otherEntityIndex];
+        shared_hPos_x[threadIdx.y][0] = hPos[otherEntityIndex][0];
+        shared_hPos_x[threadIdx.y][1] = hPos[otherEntityIndex][1];
+        shared_hPos_x[threadIdx.y][2] = hPos[otherEntityIndex][2];
+    }
+    if (threadIdx.y == 0) {
+        shared_hPos_y[threadIdx.x][0] = hPos[entityIndex][0];
+        shared_hPos_y[threadIdx.x][1] = hPos[entityIndex][1];
+        shared_hPos_y[threadIdx.x][2] = hPos[entityIndex][2];
+    }
+
+    __syncthreads();
 
     if(entityIndex < NUMENTITIES && otherEntityIndex < NUMENTITIES) {
         if (entityIndex == otherEntityIndex) {
@@ -26,47 +45,19 @@ __global__ void gpu_compute_accels(vector3** accels, vector3* hPos, double* mass
 			}
         else{
             vector3 distance;
-            for (int k=0;k<3;k++) distance[k]=hPos[entityIndex][k]-hPos[otherEntityIndex][k];
+            for (int k=0;k<3;k++) distance[k]=shared_hPos_y[threadIdx.x][k]-shared_hPos_x[threadIdx.y][k];
             double magnitude_sq=distance[0]*distance[0]+distance[1]*distance[1]+distance[2]*distance[2];
             double magnitude=sqrt(magnitude_sq);
-            double accelmag=-1*GRAV_CONSTANT*mass[otherEntityIndex]/magnitude_sq;
+            double accelmag=-1*GRAV_CONSTANT*shared_mass[threadIdx.y]/magnitude_sq;
             FILL_VECTOR(accels[entityIndex][otherEntityIndex],accelmag*distance[0]/magnitude,accelmag*distance[1]/magnitude,accelmag*distance[2]/magnitude);
         }
     }
 }
 
-void compute_accels(vector3** h_accels) {
-
-    // create that accleration matrix on the GPU
-    vector3** d_accels;
-    cudaMalloc((void **)&d_accels, sizeof(vector3*) * NUMENTITIES); // array of rows (arrays)
-
-    for (int i = 0; i < NUMENTITIES; i++) {
-        vector3* d_accel_row;
-
-        // allocate space for the row on gpu
-        cudaMalloc((void **)&d_accel_row, sizeof(vector3) * NUMENTITIES);
-
-        // copy values from host row to that row in gpu
-        cudaMemcpy(d_accel_row, h_accels[i], sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-
-        // put that row into the matrix on the gpu
-        cudaMemcpy(d_accels+i, &d_accel_row, sizeof(vector3*), cudaMemcpyHostToDevice);
-    }
-
-    // create the positions array on the GPU
-    cudaMalloc((void **)&d_hPos, sizeof(vector3) * NUMENTITIES);
-    cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-
-    // create the mass array on the GPU
-    cudaMalloc((void **)&d_mass, sizeof(double) * NUMENTITIES);
-    cudaMemcpy(d_mass, mass, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
+void compute_accels(vector3** h_accels, vector3** d_accels) {
 
     dim3 blockSize = dim3(BLOCK_WIDTH, BLOCK_WIDTH, 1);
     dim3 gridSize = dim3(ceil((float)NUMENTITIES / (float)BLOCK_WIDTH), ceil((float)NUMENTITIES / (float)BLOCK_WIDTH), 1);
-
-    printf("grid size x:%d y:%d z:%d\n", gridSize.x, gridSize.y, gridSize.z);
-    printf("block size x:%d y:%d z:%d\n", blockSize.x, blockSize.y, blockSize.z);
 
     // call the kernel
     gpu_compute_accels<<<gridSize, blockSize>>>(d_accels, d_hPos, d_mass);
@@ -94,13 +85,15 @@ void compute_accels(vector3** h_accels) {
     #endif
 }
 
+__global__ void gpu_advance_simulation(vector3** accels, vector3* hPos, double* mass) {
+
+}
+
 //compute: Updates the positions and locations of the objects in the system based on gravity.
 //Parameters: None
 //Returns: None
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
-
-    printf("In compute.cu\n");
 
 	// make an acceleration matrix which is NUMENTITIES squared in size
 	vector3* h_values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
@@ -116,19 +109,36 @@ void compute(){
         }
     }
 
-    // allocate device memory of velocity, position, and mass
+    // create that accleration matrix on the GPU
+    vector3** d_accels;
+    cudaMalloc((void **)&d_accels, sizeof(vector3*) * NUMENTITIES); // array of rows (arrays)
+
+    for (int i = 0; i < NUMENTITIES; i++) {
+        vector3* d_accel_row;
+
+        // allocate space for the row on gpu
+        cudaMalloc((void **)&d_accel_row, sizeof(vector3) * NUMENTITIES);
+
+        // copy values from host row to that row in gpu
+        cudaMemcpy(d_accel_row, h_accels[i], sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+
+        // put that row into the matrix on the gpu
+        cudaMemcpy(d_accels+i, &d_accel_row, sizeof(vector3*), cudaMemcpyHostToDevice);
+    }
+
+    // create the positions array on the GPU
+    cudaMalloc((void **)&d_hPos, sizeof(vector3) * NUMENTITIES);
+    cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+
+    // create the mass array on the GPU
+    cudaMalloc((void **)&d_mass, sizeof(double) * NUMENTITIES);
+    cudaMemcpy(d_mass, mass, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
+
+    // create the velocity array on the GPU
 	cudaMalloc((void **)&d_hVel, sizeof(vector3) * NUMENTITIES);
     cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 
-    compute_accels(h_accels);
-
-/*     for (int i = 0; i < NUMENTITIES; i++) {
-        for(int j = 0; j < NUMENTITIES; j++) {
-            for(int k = 0; k < VECTOR_SIZE; k++) {
-                printf("%32.32f\n", h_accels[i][j][0]);
-            }
-        }
-    } */
+    compute_accels(h_accels, d_accels);
 
     //sum up the rows of our matrix to get effect on each entity, then update velocity and position.
 	for (int i = 0; i < NUMENTITIES; i++){
