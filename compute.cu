@@ -113,14 +113,16 @@ __global__ void sumNoncommSingleBlock(int *gArr, int *out, int arraySize) {
         *out = shArr[0];
 }
 
-__global__ void sumOneVectorPerBlock(int *gArr, int *out, int arraySize) {
+__global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize) {
     int thIdx = threadIdx.x;
     int bIdx = blockIdx.x;
 
-    __shared__ int shArr[THREADS_PER_BLOCK * 2];
+    __shared__ vector3 shArr[THREADS_PER_BLOCK * 2];
     __shared__ int offset;
 
-    shArr[thIdx] = thIdx < arraySize ? gArr[bIdx * arraySize + thIdx] : 0;
+    shArr[thIdx][0] = thIdx < arraySize ? gArr[bIdx * arraySize + thIdx][0] : 0;
+    shArr[thIdx][1] = thIdx < arraySize ? gArr[bIdx * arraySize + thIdx][1] : 0;
+    shArr[thIdx][2] = thIdx < arraySize ? gArr[bIdx * arraySize + thIdx][2] : 0;
 
     if (thIdx == 0)
         offset = blockDim.x;
@@ -128,31 +130,44 @@ __global__ void sumOneVectorPerBlock(int *gArr, int *out, int arraySize) {
 
     while (offset < arraySize) {
 
-        shArr[thIdx + THREADS_PER_BLOCK] =
-            thIdx + offset < arraySize ? gArr[bIdx * arraySize + thIdx + offset] : 0;
+        shArr[thIdx + THREADS_PER_BLOCK][0] = thIdx + offset < arraySize ? gArr[bIdx * arraySize + thIdx + offset][0] : 0;
+        shArr[thIdx + THREADS_PER_BLOCK][1] = thIdx + offset < arraySize ? gArr[bIdx * arraySize + thIdx + offset][1] : 0;
+        shArr[thIdx + THREADS_PER_BLOCK][2] = thIdx + offset < arraySize ? gArr[bIdx * arraySize + thIdx + offset][2] : 0;
         __syncthreads();
 
         if (thIdx == 0)
             offset += THREADS_PER_BLOCK;
 
-        int sum = shArr[2 * thIdx] + shArr[2 * thIdx + 1];
+        vector3 sum; 
+        sum[0] = shArr[2 * thIdx][0] + shArr[2 * thIdx + 1][0];
+        sum[1] = shArr[2 * thIdx][1] + shArr[2 * thIdx + 1][1];
+        sum[2] = shArr[2 * thIdx][2] + shArr[2 * thIdx + 1][2];
+        
         __syncthreads();
-        shArr[thIdx] = sum;
+        shArr[thIdx][0] = sum[0];
+        shArr[thIdx][1] = sum[1];
+        shArr[thIdx][2] = sum[2];
     }
     __syncthreads();
 
     for (int stride = 1; stride < THREADS_PER_BLOCK; stride *= 2) {
         int arrIdx = thIdx * stride * 2;
-        if (arrIdx + stride < THREADS_PER_BLOCK)
-            shArr[arrIdx] += shArr[arrIdx + stride];
+        if (arrIdx + stride < THREADS_PER_BLOCK) {
+            shArr[arrIdx][0] += shArr[arrIdx + stride][0];
+            shArr[arrIdx][1] += shArr[arrIdx + stride][1];
+            shArr[arrIdx][2] += shArr[arrIdx + stride][2];
+        }
         __syncthreads();
     }
 
-    if (thIdx == 0)
-        out[bIdx] = shArr[0];
+    if (thIdx == 0) {
+        out[bIdx][0] = shArr[0][0];
+        out[bIdx][1] = shArr[0][1];
+        out[bIdx][2] = shArr[0][2];
+    }
 }
 
-void sumAccelerations(int *d_input, int *d_output, int arraySize, int numVectors) {
+void sumAccelerations(vector3 *d_input, vector3 *d_output, int arraySize, int numVectors) {
 
     dim3 gridSize = dim3(numVectors, 1, 1);
     dim3 blockSize = dim3(THREADS_PER_BLOCK, 1, 1);
@@ -251,35 +266,33 @@ void compute(){
     // START TEST ZONE
     int size = 6;
     
-    int *h_input = (int*)malloc(sizeof(int) * size * size);
+    vector3 *h_input = (vector3*)malloc(sizeof(vector3) * size * size);
     for(int i = 0; i < size * size; i++) {
-        h_input[i] = i;
+        h_input[i][0] = (double)i;
+        h_input[i][1] = (double)i;
+        h_input[i][2] = (double)i;
     }
 
-    int *h_output = (int*)malloc(sizeof(int) * size);
+    vector3 *h_output = (vector3*)malloc(sizeof(vector3) * size);
     for(int i = 0; i < size; i++) {
-        h_output[i] = 0;
+        h_output[i][0] = 0.0;
+        h_output[i][1] = 0.0;
+        h_output[i][2] = 0.0;
     }
-/*     int *h_output = (int*)malloc(sizeof(int)); */
 
-    int * d_input;
-    cudaMalloc((void **)&d_input, sizeof(int) * size * size);
-    cudaMemcpy(d_input, h_input, sizeof(int) * size * size, cudaMemcpyHostToDevice);
+    vector3 *d_input;
+    cudaMalloc((void **)&d_input, sizeof(vector3) * size * size);
+    cudaMemcpy(d_input, h_input, sizeof(vector3) * size * size, cudaMemcpyHostToDevice);
 
-    int * d_output;
-    cudaMalloc((void **)&d_output, sizeof(int) * size);
-/*     cudaMalloc((void **)&d_output, sizeof(int)); */
+    vector3 *d_output;
+    cudaMalloc((void **)&d_output, sizeof(vector3) * size);
 
     sumAccelerations(d_input, d_output, size, size*size);
-/*     sumNoncommSingleBlock<<<1, THREADS_PER_BLOCK>>>(d_input, d_output, size*size); */
 
-    cudaMemcpy(h_output, d_output, sizeof(int) * size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_output, d_output, sizeof(vector3) * size, cudaMemcpyDeviceToHost);
     for (int i = 0; i < size; i++) {
-        printf("%d\n", h_output[i]);
+        printf("%1.1f %1.1f %1.1f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
     }
-
-/*     cudaMemcpy(h_output, d_output, sizeof(int), cudaMemcpyDeviceToHost);
-    printf("%d\n", *h_output); */
 
     // END TEST ZONE
 
