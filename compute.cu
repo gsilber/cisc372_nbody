@@ -114,6 +114,7 @@ __global__ void sumNoncommSingleBlock(int *gArr, int *out, int arraySize) {
 }
 
 __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize) {
+    
     int thIdx = threadIdx.x;
     int bIdx = blockIdx.x;
 
@@ -167,9 +168,9 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
     }
 }
 
-void sumAccelerations(vector3 *d_input, vector3 *d_output, int arraySize, int numVectors) {
+void sumAccelerations(vector3 *d_input, vector3 *d_output, int arraySize) {
 
-    dim3 gridSize = dim3(numVectors, 1, 1);
+    dim3 gridSize = dim3(arraySize, 1, 1);
     dim3 blockSize = dim3(THREADS_PER_BLOCK, 1, 1);
 
     sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_input, d_output, arraySize);
@@ -287,7 +288,7 @@ void compute(){
     vector3 *d_output;
     cudaMalloc((void **)&d_output, sizeof(vector3) * size);
 
-    sumAccelerations(d_input, d_output, size, size*size);
+    sumAccelerations(d_input, d_output, size);
 
     cudaMemcpy(h_output, d_output, sizeof(vector3) * size, cudaMemcpyDeviceToHost);
     for (int i = 0; i < size; i++) {
