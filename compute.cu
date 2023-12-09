@@ -148,19 +148,21 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
         shArr[thIdx][0] = sum[0];
         shArr[thIdx][1] = sum[1];
         shArr[thIdx][2] = sum[2];
+        __syncthreads();
     }
     __syncthreads();
 
     for (int stride = 1; stride < THREADS_PER_BLOCK; stride *= 2) {
+        __syncthreads();
         int arrIdx = thIdx * stride * 2;
         if (arrIdx + stride < THREADS_PER_BLOCK) {
             shArr[arrIdx][0] += shArr[arrIdx + stride][0];
             shArr[arrIdx][1] += shArr[arrIdx + stride][1];
             shArr[arrIdx][2] += shArr[arrIdx + stride][2];
         }
-        __syncthreads();
     }
 
+    __syncthreads();
     if (thIdx == 0) {
         out[bIdx][0] = shArr[0][0];
         out[bIdx][1] = shArr[0][1];
@@ -185,6 +187,7 @@ void sumAccelerations(vector3 *d_input, vector3 *d_output, int arraySize) {
 __global__ void gpu_advance_simulation(vector3* d_values, vector3* hVel, vector3* hPos) {
     
     //int entityIndex = (blockIdx.x * blockDim.x + threadIdx.x) * NUMENTITIES;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
 
 /*     for(int i = entityIndex + 1; i < entityIndex + NUMENTITIES; i++) {
         d_values[entityIndex][0] += d_values[i][0];
@@ -193,8 +196,8 @@ __global__ void gpu_advance_simulation(vector3* d_values, vector3* hVel, vector3
     } */
 
     for (int k = 0; k < 3; k++){
-        hVel[blockIdx.x * blockDim.x + threadIdx.x][k] += d_values[blockIdx.x * blockDim.x + threadIdx.x][k]*INTERVAL;
-        hPos[blockIdx.x * blockDim.x + threadIdx.x][k] += hVel[blockIdx.x * blockDim.x + threadIdx.x][k]*INTERVAL;
+        hVel[index][k] += d_values[index][k]*INTERVAL;
+        hPos[index][k] += hVel[index][k]*INTERVAL;
     }
 }
 
@@ -204,6 +207,16 @@ void advance_simulation(vector3* h_values, vector3* d_values, vector3* d_hVel, v
     cudaMalloc((void **)&d_output, sizeof(vector3) * NUMENTITIES);
 
     sumAccelerations(d_values, d_output, NUMENTITIES);
+
+    //#ifdef DEBUG
+        vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
+        cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+        for (int i = 0; i < NUMENTITIES; i++) {
+            printf("%32.32f \n", h_output[i][0]);
+            //printf("%32.32f %1.1f %1.1f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
+        }
+    //#endif
+
 
     dim3 blockSize = dim3(256, 1, 1);
     dim3 gridSize = dim3(ceil((float)NUMENTITIES / 256), 1, 1);
