@@ -184,26 +184,31 @@ void sumAccelerations(vector3 *d_input, vector3 *d_output, int arraySize) {
 
 __global__ void gpu_advance_simulation(vector3* d_values, vector3* hVel, vector3* hPos) {
     
-    int entityIndex = (blockIdx.x * blockDim.x + threadIdx.x) * NUMENTITIES;
+    //int entityIndex = (blockIdx.x * blockDim.x + threadIdx.x) * NUMENTITIES;
 
-    for(int i = entityIndex + 1; i < entityIndex + NUMENTITIES; i++) {
+/*     for(int i = entityIndex + 1; i < entityIndex + NUMENTITIES; i++) {
         d_values[entityIndex][0] += d_values[i][0];
         d_values[entityIndex][1] += d_values[i][1];
         d_values[entityIndex][2] += d_values[i][2];
-    }
+    } */
 
     for (int k = 0; k < 3; k++){
-        hVel[blockIdx.x * blockDim.x + threadIdx.x][k]+=d_values[entityIndex][k]*INTERVAL;
-        hPos[blockIdx.x * blockDim.x + threadIdx.x][k]+=hVel[blockIdx.x * blockDim.x + threadIdx.x][k]*INTERVAL;
+        hVel[blockIdx.x * blockDim.x + threadIdx.x][k] += d_values[blockIdx.x * blockDim.x + threadIdx.x][k]*INTERVAL;
+        hPos[blockIdx.x * blockDim.x + threadIdx.x][k] += hVel[blockIdx.x * blockDim.x + threadIdx.x][k]*INTERVAL;
     }
 }
 
 void advance_simulation(vector3* h_values, vector3* d_values, vector3* d_hVel, vector3* d_hPos) {
 
+    vector3 *d_output;
+    cudaMalloc((void **)&d_output, sizeof(vector3) * NUMENTITIES);
+
+    sumAccelerations(d_values, d_output, NUMENTITIES);
+
     dim3 blockSize = dim3(256, 1, 1);
     dim3 gridSize = dim3(ceil((float)NUMENTITIES / 256), 1, 1);
 
-    gpu_advance_simulation<<<gridSize, blockSize>>>(d_values, d_hVel, d_hPos);
+    gpu_advance_simulation<<<gridSize, blockSize>>>(d_output, d_hVel, d_hPos);
 
     cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
     cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
@@ -261,11 +266,11 @@ void compute(){
 	cudaMalloc((void **)&d_hVel, sizeof(vector3) * NUMENTITIES);
     cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 
-    //compute_accels(h_values, d_values);
-    //advance_simulation(h_values, d_values, d_hVel, d_hPos);
+    compute_accels(h_values, d_values);
+    advance_simulation(h_values, d_values, d_hVel, d_hPos);
 
     // START TEST ZONE
-    int size = 6;
+/*     int size = 6;
     
     vector3 *h_input = (vector3*)malloc(sizeof(vector3) * size * size);
     for(int i = 0; i < size * size; i++) {
@@ -293,7 +298,7 @@ void compute(){
     cudaMemcpy(h_output, d_output, sizeof(vector3) * size, cudaMemcpyDeviceToHost);
     for (int i = 0; i < size; i++) {
         printf("%1.1f %1.1f %1.1f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
-    }
+    } */
 
     // END TEST ZONE
 
