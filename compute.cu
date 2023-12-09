@@ -256,30 +256,30 @@ void compute(){
         h_input[i] = i;
     }
 
-    /* int *h_output = (int*)malloc(sizeof(int) * size);
+    int *h_output = (int*)malloc(sizeof(int) * size);
     for(int i = 0; i < size; i++) {
         h_output[i] = 0;
-    } */
-    int *h_output = (int*)malloc(sizeof(int));
+    }
+/*     int *h_output = (int*)malloc(sizeof(int)); */
 
     int * d_input;
     cudaMalloc((void **)&d_input, sizeof(int) * size * size);
     cudaMemcpy(d_input, h_input, sizeof(int) * size * size, cudaMemcpyHostToDevice);
 
     int * d_output;
-    //cudaMalloc((void **)&d_output, sizeof(int) * size);
-    cudaMalloc((void **)&d_output, sizeof(int));
+    cudaMalloc((void **)&d_output, sizeof(int) * size);
+/*     cudaMalloc((void **)&d_output, sizeof(int)); */
 
-    //sumAccelerations(d_input, d_output, size, size*size);
-    sumNoncommSingleBlock<<<1, THREADS_PER_BLOCK>>>(d_input, d_output, size*size);
+    sumAccelerations(d_input, d_output, size, size*size);
+/*     sumNoncommSingleBlock<<<1, THREADS_PER_BLOCK>>>(d_input, d_output, size*size); */
 
-/*     cudaMemcpy(h_output, d_output, sizeof(int) * size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_output, d_output, sizeof(int) * size, cudaMemcpyDeviceToHost);
     for (int i = 0; i < size; i++) {
         printf("%d\n", h_output[i]);
-    } */
+    }
 
-    cudaMemcpy(h_output, d_output, sizeof(int), cudaMemcpyDeviceToHost);
-    printf("%d\n", *h_output);
+/*     cudaMemcpy(h_output, d_output, sizeof(int), cudaMemcpyDeviceToHost);
+    printf("%d\n", *h_output); */
 
     // END TEST ZONE
 
