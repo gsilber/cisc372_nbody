@@ -11,7 +11,7 @@
 // DO NOT CHANGE THE VECTOR SIZE
 #define VECTORSIZE 3
 
-__global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
+__global__ void compute_accels(vector3 *accels, vector3* pos, double* mass) {
 
     int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -113,7 +113,7 @@ void compute(){
     //printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
     //printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
 
-    test_kernel<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
+    compute_accels<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
 
     cudaError_t cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
