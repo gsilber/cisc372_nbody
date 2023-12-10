@@ -5,7 +5,9 @@
 
 #include <stdio.h>
 
-#define BLOCKWIDTH 16
+#define BLOCKWIDTH 4
+
+// DO NOT CHANGE THE VECTOR SIZE
 #define VECTORSIZE 3
 
 __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
@@ -16,19 +18,26 @@ __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
     __shared__ double distances[BLOCKWIDTH][BLOCKWIDTH][VECTORSIZE];
 
     if(i < NUMENTITIES && j < NUMENTITIES) {
+        distances[i][j][threadIdx.z] = pos[i][threadIdx.z] - pos[j][threadIdx.z];
+    }
+    __syncthreads();
+
+    if(i < NUMENTITIES && j < NUMENTITIES) {
         //accels[i * NUMENTITIES + j][threadIdx.z] = i;
 
         if (i == j) {
             accels[i * NUMENTITIES + j][threadIdx.z] = 0.0;
         }
         else{
-            distances[i][j][threadIdx.z] = pos[i][threadIdx.z] - pos[j][threadIdx.z];
-            __syncthreads();
-            double magnitude_sq = distances[i][j][0] * distances[i][j][0] + distances[i][j][1] * distances[i][j][1] + distances[i][j][2] * distances[i][j][2];
+            double dx = pos[i][0] - pos[j][0];
+            double dy = pos[i][1] - pos[j][1];
+            double dz = pos[i][2] - pos[j][2];
+
+            double magnitude_sq = dx * dx + dy * dy + dz * dz;
+            //double magnitude_sq = distances[i][j][0] * distances[i][j][0] + distances[i][j][1] * distances[i][j][1] + distances[i][j][2] * distances[i][j][2];
             double magnitude = sqrt(magnitude_sq);
             double accelmag =- 1 * GRAV_CONSTANT * mass[j] / magnitude_sq;
-            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * distances[i][j][threadIdx.z] / magnitude;
-            //FILL_VECTOR(accels[i][j],accelmag*distance[0]/magnitude,accelmag*distance[1]/magnitude,accelmag*distance[2]/magnitude);
+            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * dx / magnitude;
         }
     }
 
@@ -46,8 +55,8 @@ void compute(){
     dim3 blockSize = dim3(BLOCKWIDTH, BLOCKWIDTH, 3);
     dim3 gridSize = dim3(ceil((double)NUMENTITIES / (double)blockSize.x), ceil((double)NUMENTITIES / (double)blockSize.y), 1);
 
-    //printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
-    //printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
+    printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
+    printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
 
     test_kernel<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
 
@@ -61,12 +70,15 @@ void compute(){
 
     for(int i = 0; i < NUMENTITIES * NUMENTITIES; i ++) {
         
-        if(i % NUMENTITIES == 0)
+        if(i % NUMENTITIES == 0) {
             printf("\n");
-
+        }
         printf("%.32f\n", hAccels[i][0]);
     }
     printf("\n");
+/*     printf("%.2f ", hAccels[9][0]);
+    printf("%.2f ", hAccels[9][1]);
+    printf("%.2f ", hAccels[9][2]); */
 
 /*     cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
     cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
