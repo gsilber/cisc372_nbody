@@ -37,7 +37,7 @@ __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
             //double magnitude_sq = distances[i][j][0] * distances[i][j][0] + distances[i][j][1] * distances[i][j][1] + distances[i][j][2] * distances[i][j][2];
             double magnitude = sqrt(magnitude_sq);
             double accelmag =- 1 * GRAV_CONSTANT * mass[j] / magnitude_sq;
-            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * dx / magnitude;
+            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * dx / magnitude; //FIXME: I SHOULD NOT BE DX FOR ALL threadIdx.z
         }
     }
 
