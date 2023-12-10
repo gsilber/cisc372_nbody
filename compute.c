@@ -55,6 +55,7 @@ void compute(){
 			hVel[i][k]+=accel_sum[k]*INTERVAL;
 			hPos[i][k]+=hVel[i][k]*INTERVAL;
 		}
+        //printf("%32.32f %32.32f %32.32f\n", hPos[i][0], hPos[i][1], hPos[i][2]);
 	}
 	free(accels);
 	free(values);

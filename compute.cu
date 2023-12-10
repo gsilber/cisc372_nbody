@@ -83,6 +83,16 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
     }
 }
 
+__global__ void advance_time(vector3* accel, vector3* vel, vector3* pos) {
+    
+    //pos[blockIdx.x][threadIdx.x] += vel[blockIdx.x][threadIdx.x]*INTERVAL;
+    //vel[blockIdx.x][threadIdx.x] = accel[blockIdx.x][threadIdx.x]*INTERVAL;
+    //pos[blockIdx.x][threadIdx.x] = vel[blockIdx.x][threadIdx.x]*INTERVAL;
+
+    vel[blockIdx.x][threadIdx.x] += accel[blockIdx.x][threadIdx.x]*INTERVAL;
+    pos[blockIdx.x][threadIdx.x] += vel[blockIdx.x][threadIdx.x]*INTERVAL;
+}
+
 // d_input is our array of values to sum (IT'S A 2D ARRAY IN 1D FORM)
 // d_output is our array of sums
 // arraySize is both the number of sums we have to compute and the number of values that will be summed 
@@ -197,18 +207,37 @@ void compute(){
     }
 
     sumAccelerations(d_hAccels, d_output, NUMENTITIES);
-    cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    //cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 
-    for(int i = 0; i < NUMENTITIES; i++) {
+/*     for(int i = 0; i < NUMENTITIES; i++) {
         for (int k=0;k<3;k++){
             //printf("k is %d\n", k);
             hVel[i][k]+=h_output[i][k]*INTERVAL;
             hPos[i][k]+=hVel[i][k]*INTERVAL;
         }
-    }
+    } */
+
+    blockSize = dim3(VECTORSIZE, 1, 1);
+    gridSize = dim3(NUMENTITIES, 1, 1);
+
+/*     printf("POSITION BEFORE\n");
+    for (int i = 0; i < NUMENTITIES; i++) {
+        printf("%32.32f %32.32f %32.32f\n", hPos[i][0], hPos[i][1], hPos[i][2]);
+    }  */
+
+/*     printf("VELOCITY/INTERVAL BEFORE\n");
+    for (int i = 0; i < NUMENTITIES; i++) {
+        printf("%32.32f %32.32f %32.32f\n", hVel[i][0]*INTERVAL, hVel[i][1]*INTERVAL, hVel[i][2]*INTERVAL);
+    }  */
+
+    cudaDeviceSynchronize();
+    advance_time<<<gridSize, blockSize>>> (d_output, d_hVel, d_hPos);
+    //cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    //cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
         
-/*     for (int i = 0; i < NUMENTITIES; i++) {
-        printf("%32.32f %32.32f %32.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
+  /*   printf("POSITION AFTER\n");
+    for (int i = 0; i < NUMENTITIES; i++) {
+        printf("%32.32f %32.32f %32.32f\n", hPos[i][0], hPos[i][1], hPos[i][2]);
     }  */
 
     //printf("before cudaMemcpy\n");
