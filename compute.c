@@ -3,7 +3,7 @@
 #include "vector.h"
 #include "config.h"
 
-#include<stdio.h>
+#include <stdio.h>
 
 //compute: Updates the positions and locations of the objects in the system based on gravity.
 //Parameters: None
@@ -27,17 +27,17 @@ void compute(){
 				for (k=0;k<3;k++) distance[k]=hPos[i][k]-hPos[j][k];
 				double magnitude_sq=distance[0]*distance[0]+distance[1]*distance[1]+distance[2]*distance[2];
 				double magnitude=sqrt(magnitude_sq);
-				double accelmag=-1*GRAV_CONSTANT*mass[j]/magnitude_sq;
+				double accelmag=-1*GRAV_CONSTANT*hmass[j]/magnitude_sq;
 				FILL_VECTOR(accels[i][j],accelmag*distance[0]/magnitude,accelmag*distance[1]/magnitude,accelmag*distance[2]/magnitude);
 			}
 		}
 	}
 
-/*     for(i = 0; i < NUMENTITIES; i++) {
-        for(j = 0; j < NUMENTITIES; j++) {
-            printf("%32.32f\n", accels[i][j][0]);
-        }
+/*     for (i=0;i<NUMENTITIES;i++){
         printf("\n");
+		for (j=0;j<NUMENTITIES;j++){
+            printf("%.32f\n", accels[i][j][0]);
+        }
     } */
 
 	//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
@@ -47,16 +47,16 @@ void compute(){
 			for (k=0;k<3;k++)
 				accel_sum[k]+=accels[i][j][k];
 		}
-        printf("%2.32f\n", accel_sum[0]);
+
+        //printf("%32.32f %32.32f %32.32f\n", accel_sum[0], accel_sum[1], accel_sum[2]);
 		//compute the new velocity based on the acceleration and time interval
 		//compute the new position based on the velocity and time interval
 		for (k=0;k<3;k++){
 			hVel[i][k]+=accel_sum[k]*INTERVAL;
 			hPos[i][k]+=hVel[i][k]*INTERVAL;
 		}
-        //printf("%10.32f\n",hVel[i][0]);
+        //printf("%32.32f %32.32f %32.32f\n", hPos[i][0], hPos[i][1], hPos[i][2]);
 	}
-    //printf("\n");
 	free(accels);
 	free(values);
 }
