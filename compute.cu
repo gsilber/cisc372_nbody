@@ -5,14 +5,31 @@
 
 #include <stdio.h>
 
+#define BLOCKWIDTH 16
+#define VECTORSIZE 3
+
 __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
-    //int threadIndex = threadIdx.x;
 
     int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     int j = (blockIdx.y * blockDim.y) + threadIdx.y;
 
+    __shared__ double distances[BLOCKWIDTH][BLOCKWIDTH][VECTORSIZE];
+
     if(i < NUMENTITIES && j < NUMENTITIES) {
-        accels[i * NUMENTITIES + j][threadIdx.z] = i;
+        //accels[i * NUMENTITIES + j][threadIdx.z] = i;
+
+        if (i == j) {
+            accels[i * NUMENTITIES + j][threadIdx.z] = 0.0;
+        }
+        else{
+            distances[i][j][threadIdx.z] = pos[i][threadIdx.z] - pos[j][threadIdx.z];
+            __syncthreads();
+            double magnitude_sq = distances[i][j][0] * distances[i][j][0] + distances[i][j][1] * distances[i][j][1] + distances[i][j][2] * distances[i][j][2];
+            double magnitude = sqrt(magnitude_sq);
+            double accelmag =- 1 * GRAV_CONSTANT * mass[j] / magnitude_sq;
+            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * distances[i][j][threadIdx.z] / magnitude;
+            //FILL_VECTOR(accels[i][j],accelmag*distance[0]/magnitude,accelmag*distance[1]/magnitude,accelmag*distance[2]/magnitude);
+        }
     }
 
 /*     vel[threadIdx.x][0] = vel[threadIdx.x][0] + 1.0;
@@ -26,11 +43,11 @@ __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
 
-    dim3 blockSize = dim3(2, 2, 3);
+    dim3 blockSize = dim3(BLOCKWIDTH, BLOCKWIDTH, 3);
     dim3 gridSize = dim3(ceil((double)NUMENTITIES / (double)blockSize.x), ceil((double)NUMENTITIES / (double)blockSize.y), 1);
 
-    printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
-    printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
+    //printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
+    //printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
 
     test_kernel<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
 
@@ -47,7 +64,7 @@ void compute(){
         if(i % NUMENTITIES == 0)
             printf("\n");
 
-        printf("%.1f ", hAccels[i][2]);
+        printf("%.32f\n", hAccels[i][0]);
     }
     printf("\n");
 
