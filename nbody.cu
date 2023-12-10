@@ -12,6 +12,7 @@ vector3 *hVel, *d_hVel;
 vector3 *hPos, *d_hPos;
 double *hmass, *d_hmass;
 vector3 *d_hAccels;
+vector3 *d_output;
 
 //FIXME: Remove this when done since it is for debug
 vector3 *hAccels;
@@ -42,6 +43,8 @@ void initDeviceMemory(int numObjects)
     cudaMalloc((void**)&d_hmass, sizeof(double) * numObjects);
     cudaMemcpy(d_hmass, hmass, sizeof(double) * numObjects, cudaMemcpyHostToDevice);
 
+    cudaMalloc((void **)&d_output, sizeof(vector3) * NUMENTITIES);
+
     cudaMalloc((void**)&d_hAccels, sizeof(vector3) * numObjects * numObjects);
 }
 
@@ -61,6 +64,7 @@ void freeDeviceMemory()
 	cudaFree(d_hVel);
 	cudaFree(d_hPos);
 	cudaFree(d_hmass);
+    cudaFree(d_output);
 }
 
 //planetFill: Fill the first NUMPLANETS+1 entries of the entity arrays with an estimation

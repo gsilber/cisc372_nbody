@@ -84,11 +84,6 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
 }
 
 __global__ void advance_time(vector3* accel, vector3* vel, vector3* pos) {
-    
-    //pos[blockIdx.x][threadIdx.x] += vel[blockIdx.x][threadIdx.x]*INTERVAL;
-    //vel[blockIdx.x][threadIdx.x] = accel[blockIdx.x][threadIdx.x]*INTERVAL;
-    //pos[blockIdx.x][threadIdx.x] = vel[blockIdx.x][threadIdx.x]*INTERVAL;
-
     vel[blockIdx.x][threadIdx.x] += accel[blockIdx.x][threadIdx.x]*INTERVAL;
     pos[blockIdx.x][threadIdx.x] += vel[blockIdx.x][threadIdx.x]*INTERVAL;
 }
@@ -105,10 +100,6 @@ void sumAccelerations(vector3 *d_input, vector3 *d_output, int arraySize) {
     sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_input, d_output, arraySize);
 
     cudaDeviceSynchronize();
-    cudaError_t cudaError = cudaGetLastError();
-    if (cudaError != cudaSuccess) {
-        fprintf(stderr, "CUDA error: %s\n", cudaGetErrorString(cudaError));
-    }
 }
 
 //compute: Updates the positions and locations of the objects in the system based on gravity.
@@ -120,15 +111,7 @@ void compute(){
     dim3 blockSize = dim3(BLOCKWIDTH, BLOCKWIDTH, 3);
     dim3 gridSize = dim3(ceil((double)NUMENTITIES / (double)blockSize.x), ceil((double)NUMENTITIES / (double)blockSize.y), 1);
 
-    //printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
-    //printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
-
     compute_accels<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
-
-    cudaError_t cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "CUDA API call failed: %s\n", cudaGetErrorString(cudaStatus));
-    }
 
     /* 
     cudaMemcpy(hAccels, d_hAccels, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
@@ -195,16 +178,13 @@ void compute(){
         printf("%32.32f %32.32f %32.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
     } 
     // END TEST ZONE */
-   
-    vector3 *d_output;
-    cudaMalloc((void **)&d_output, sizeof(vector3) * NUMENTITIES);
 
-    vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
+/*     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
     for(int i = 0; i < NUMENTITIES; i++) {
         h_output[i][0] = 0.0;
         h_output[i][1] = 0.0;
         h_output[i][2] = 0.0;
-    }
+    } */
 
     sumAccelerations(d_hAccels, d_output, NUMENTITIES);
     //cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
