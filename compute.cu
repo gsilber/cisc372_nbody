@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-#define BLOCKWIDTH 4
+#define BLOCKWIDTH 8
 
 // DO NOT CHANGE THE VECTOR SIZE
 #define VECTORSIZE 3
@@ -18,7 +18,7 @@ __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
     __shared__ double distances[BLOCKWIDTH][BLOCKWIDTH][VECTORSIZE];
 
     if(i < NUMENTITIES && j < NUMENTITIES) {
-        distances[i][j][threadIdx.z] = pos[i][threadIdx.z] - pos[j][threadIdx.z];
+        distances[threadIdx.x][threadIdx.y][threadIdx.z] = pos[i][threadIdx.z] - pos[j][threadIdx.z];
     }
     __syncthreads();
 
@@ -29,15 +29,22 @@ __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
             accels[i * NUMENTITIES + j][threadIdx.z] = 0.0;
         }
         else{
-            double dx = pos[i][0] - pos[j][0];
+  /*           double dx = pos[i][0] - pos[j][0];
             double dy = pos[i][1] - pos[j][1];
-            double dz = pos[i][2] - pos[j][2];
+            double dz = pos[i][2] - pos[j][2]; */
 
-            double magnitude_sq = dx * dx + dy * dy + dz * dz;
-            //double magnitude_sq = distances[i][j][0] * distances[i][j][0] + distances[i][j][1] * distances[i][j][1] + distances[i][j][2] * distances[i][j][2];
+            //double magnitude_sq = dx * dx + dy * dy + dz * dz;
+            double magnitude_sq = ( 
+                distances[threadIdx.x][threadIdx.y][0] * distances[threadIdx.x][threadIdx.y][0] + 
+                distances[threadIdx.x][threadIdx.y][1] * distances[threadIdx.x][threadIdx.y][1] + 
+                distances[threadIdx.x][threadIdx.y][2] * distances[threadIdx.x][threadIdx.y][2]
+            );
+
             double magnitude = sqrt(magnitude_sq);
             double accelmag =- 1 * GRAV_CONSTANT * mass[j] / magnitude_sq;
-            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * dx / magnitude; //FIXME: I SHOULD NOT BE DX FOR ALL threadIdx.z
+            //accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * dx / magnitude; //I SHOULD NOT BE DX FOR ALL threadIdx.z
+            accels[i * NUMENTITIES + j][threadIdx.z] = accelmag * distances[threadIdx.x][threadIdx.y][threadIdx.z] / magnitude;
+            //accels[i * NUMENTITIES + j][threadIdx.z] = distances[threadIdx.x][threadIdx.y][threadIdx.z];
         }
     }
 
