@@ -1,7 +1,0 @@
-Script started on Sun Dec 10 14:36:52 2023
-]0;ydnamjs@:~/CISC372/cisc372_nbody_parallelized[?1034h[ydnamjs@r2v01 cisc372_nbody_parallelized]$ srun ./parallel 
-This took a total time of 5.660000 seconds
-]0;ydnamjs@:~/CISC372/cisc372_nbody_parallelized[ydnamjs@r2v01 cisc372_nbody_parallelized]$ exit
-exit
-
-Script done on Sun Dec 10 14:37:08 2023
