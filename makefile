@@ -20,4 +20,4 @@ compute_s.o: compute.c config.h vector.h $(ALWAYS_REBUILD)
 
 # clean
 clean:
-	rm -f *.o nbody parallel serial parallel.txt serial.txt
+	rm -f *.o *.txt nbody parallel serial

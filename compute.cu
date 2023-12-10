@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-#define BLOCKWIDTH 16
+#define BLOCKWIDTH 1
 #define THREADS_PER_BLOCK BLOCKWIDTH*BLOCKWIDTH
 
 // DO NOT CHANGE THE VECTOR SIZE
@@ -60,15 +60,12 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
 
         if (threadIdx.x == 0)
             offset += THREADS_PER_BLOCK;
+        __syncthreads();
+ 
+        double sum = shArr[2 * threadIdx.x][blockIdx.y] + shArr[2 * threadIdx.x + 1][blockIdx.y];
+        __syncthreads();
 
-        vector3 sum; 
-        sum[blockIdx.y] = shArr[2 * threadIdx.x][blockIdx.y] + shArr[2 * threadIdx.x + 1][blockIdx.y];
-        
-        __syncthreads();
-        shArr[threadIdx.x][blockIdx.y] = sum[blockIdx.y];
-        shArr[threadIdx.x][1] = sum[1];
-        shArr[threadIdx.x][2] = sum[2];
-        __syncthreads();
+        shArr[threadIdx.x][blockIdx.y] = sum;
     }
     __syncthreads();
 
@@ -121,7 +118,6 @@ void compute(){
     cudaError_t cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "CUDA API call failed: %s\n", cudaGetErrorString(cudaStatus));
-        // Handle the error, throw an exception, or take appropriate action
     }
 
     /* 
@@ -151,15 +147,15 @@ void compute(){
     }
 
     sumOneVectorPerBlock<<<1, blockSize>>>(testArr, testArrSize); */
-
-    // START TEST ZONE
-    /* int size = 300;
+ 
+    /* // START TEST ZONE
+    int size = 8;
     
     vector3 *h_input = (vector3*)malloc(sizeof(vector3) * size * size);
     for(int i = 0; i < size * size; i++) {
-        h_input[i][0] = (double)i * 0.00000000001;
-        h_input[i][1] = (double)i*0.00000000002;
-        h_input[i][2] = (double)i*0.00000000003;
+        h_input[i][0] = (double)i * 1;
+        h_input[i][1] = (double)i*2;
+        h_input[i][2] = (double)i*3;
     }
 
     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * size);
@@ -179,12 +175,17 @@ void compute(){
     sumAccelerations(d_input, d_output, size);
 
     cudaMemcpy(h_output, d_output, sizeof(vector3) * size, cudaMemcpyDeviceToHost);
+    
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "CUDA API call failed: %s\n", cudaGetErrorString(cudaStatus));
+    }
+
     for (int i = 0; i < size; i++) {
         printf("%32.32f %32.32f %32.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
     } 
-    */
-
-    /*     
+    // END TEST ZONE */
+   
     vector3 *d_output;
     cudaMalloc((void **)&d_output, sizeof(vector3) * NUMENTITIES);
 
@@ -197,17 +198,24 @@ void compute(){
 
     sumAccelerations(d_hAccels, d_output, NUMENTITIES);
     cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-    for (int i = 0; i < NUMENTITIES; i++) {
+
+    for(int i = 0; i < NUMENTITIES; i++) {
+        for (int k=0;k<3;k++){
+            //printf("k is %d\n", k);
+            hVel[i][k]+=h_output[i][k]*INTERVAL;
+            hPos[i][k]+=hVel[i][k]*INTERVAL;
+        }
+    }
+        
+/*     for (int i = 0; i < NUMENTITIES; i++) {
         printf("%32.32f %32.32f %32.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
-    } 
-    */
-    // END TEST ZONE
+    }  */
 
     //printf("before cudaMemcpy\n");
-    cudaMemcpy(hAccels, d_hAccels, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
-   //printf("after cudaMemcpy\n");
+    //cudaMemcpy(hAccels, d_hAccels, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
+    //printf("after cudaMemcpy\n");
 	//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
-	for (int i=0;i<NUMENTITIES;i++){
+/* 	for (int i=0;i<NUMENTITIES;i++){
         //printf("i is %d\n", i);
 		vector3 accel_sum={0,0,0};
 		for (int j=0;j<NUMENTITIES;j++){
@@ -221,7 +229,7 @@ void compute(){
 			hVel[i][k]+=accel_sum[k]*INTERVAL;
 			hPos[i][k]+=hVel[i][k]*INTERVAL;
 		}
-	}
+	} */
     //printf("after the loops?\n");
 	//free(hAccels);
 	//free(values);
