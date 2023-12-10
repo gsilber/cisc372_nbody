@@ -29,8 +29,8 @@ void initDeviceMemory(int numObjects)
     cudaMemcpy(d_hVel, hVel, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
     cudaMalloc((void**)&d_hPos, sizeof(vector3) * numObjects);
     cudaMemcpy(d_hPos, hPos, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
-    cudaMalloc((void**)&d_hmass, sizeof(vector3) * numObjects);
-    cudaMemcpy(d_hmass, hmass, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
+    cudaMalloc((void**)&d_hmass, sizeof(double) * numObjects);
+    cudaMemcpy(d_hmass, hmass, sizeof(double) * numObjects, cudaMemcpyHostToDevice);
 }
 
 //freeHostMemory: Free storage allocated by a previous call to initHostMemory
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 	printSystem(stdout);
 	#endif
 	for (t_now=0;t_now<DURATION;t_now+=INTERVAL){
-		compute();
+        compute();
 	}
 	clock_t t1=clock()-t0;
 #ifdef DEBUG

@@ -3,12 +3,32 @@
 #include "vector.h"
 #include "config.h"
 
+#include <stdio.h>
+
+__global__ void test_kernel(vector3 *vel, vector3* pos, double* mass) {
+    //int threadIndex = threadIdx.x;
+
+    vel[threadIdx.x][0] = vel[threadIdx.x][0] + 1.0;
+    pos[threadIdx.x][0] = pos[threadIdx.x][0] + 2.0;
+    mass[threadIdx.x] = mass[threadIdx.x] + 3.0;
+}
+
 //compute: Updates the positions and locations of the objects in the system based on gravity.
 //Parameters: None
 //Returns: None
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
-	//make an acceleration matrix which is NUMENTITIES squared in size;
+
+    test_kernel<<<1,NUMENTITIES>>>(d_hVel, d_hPos, d_hmass);
+
+    cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hmass, d_hmass, sizeof(double) * NUMENTITIES, cudaMemcpyDeviceToHost);
+
+    printf("hVel: %.1f | hPos: %.1f | hmass: %.1f\n\n", hVel[1][0], hPos[1][0], hmass[1]);
+
+
+/* 	//make an acceleration matrix which is NUMENTITIES squared in size;
 	int i,j,k;
 	vector3* values=(vector3*)malloc(sizeof(vector3)*NUMENTITIES*NUMENTITIES);
 	vector3** accels=(vector3**)malloc(sizeof(vector3*)*NUMENTITIES);
@@ -45,5 +65,5 @@ void compute(){
 		}
 	}
 	free(accels);
-	free(values);
+	free(values); */
 }
