@@ -3,8 +3,6 @@
 #include "vector.h"
 #include "config.h"
 
-#include<stdio.h>
-
 //compute: Updates the positions and locations of the objects in the system based on gravity.
 //Parameters: None
 //Returns: None
@@ -32,14 +30,6 @@ void compute(){
 			}
 		}
 	}
-
-/*     for(i = 0; i < NUMENTITIES; i++) {
-        for(j = 0; j < NUMENTITIES; j++) {
-            printf("%32.32f\n", accels[i][j][0]);
-        }
-        printf("\n");
-    } */
-
 	//sum up the rows of our matrix to get effect on each entity, then update velocity and position.
 	for (i=0;i<NUMENTITIES;i++){
 		vector3 accel_sum={0,0,0};
@@ -47,16 +37,13 @@ void compute(){
 			for (k=0;k<3;k++)
 				accel_sum[k]+=accels[i][j][k];
 		}
-        printf("%2.32f\n", accel_sum[0]);
 		//compute the new velocity based on the acceleration and time interval
 		//compute the new position based on the velocity and time interval
 		for (k=0;k<3;k++){
 			hVel[i][k]+=accel_sum[k]*INTERVAL;
 			hPos[i][k]+=hVel[i][k]*INTERVAL;
 		}
-        //printf("%10.32f\n",hVel[i][0]);
 	}
-    //printf("\n");
 	free(accels);
 	free(values);
 }
