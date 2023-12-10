@@ -8,7 +8,12 @@
 __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
     //int threadIndex = threadIdx.x;
 
-    accels[threadIdx.x * NUMENTITIES + threadIdx.y][threadIdx.z] = threadIdx.z;
+    int i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int j = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    if(i < NUMENTITIES && j < NUMENTITIES) {
+        accels[i * NUMENTITIES + j][threadIdx.z] = i;
+    }
 
 /*     vel[threadIdx.x][0] = vel[threadIdx.x][0] + 1.0;
     pos[threadIdx.x][0] = pos[threadIdx.x][0] + 2.0;
@@ -21,8 +26,11 @@ __global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
 
-    dim3 blockSize = dim3(16, 16, 3);
-    dim3 gridSize = dim3(1, 1, 1);
+    dim3 blockSize = dim3(2, 2, 3);
+    dim3 gridSize = dim3(ceil((double)NUMENTITIES / (double)blockSize.x), ceil((double)NUMENTITIES / (double)blockSize.y), 1);
+
+    printf("NUMENTITIES = %d | blockSize.x = %d | NUMENTITIES/BLOCKSIZE = %f | CEIL = %f\n", NUMENTITIES, blockSize.x, (double) NUMENTITIES / (double) blockSize.x, ceil((double) NUMENTITIES / (double) blockSize.x));
+    printf("gridSize.x: %d | gridSize.y %d\n", gridSize.x, gridSize.y);
 
     test_kernel<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
 
