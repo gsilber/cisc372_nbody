@@ -10,7 +10,7 @@
 // represents the objects in the system.  Global variables
 vector3 *hVel, *d_hVel;
 vector3 *hPos, *d_hPos;
-double *mass;
+double *hmass;
 
 //initHostMemory: Create storage for numObjects entities in our system
 //Parameters: numObjects: number of objects to allocate
@@ -20,7 +20,7 @@ void initHostMemory(int numObjects)
 {
 	hVel = (vector3 *)malloc(sizeof(vector3) * numObjects);
 	hPos = (vector3 *)malloc(sizeof(vector3) * numObjects);
-	mass = (double *)malloc(sizeof(double) * numObjects);
+	hmass = (double *)malloc(sizeof(double) * numObjects);
 }
 
 //freeHostMemory: Free storage allocated by a previous call to initHostMemory
@@ -31,7 +31,7 @@ void freeHostMemory()
 {
 	free(hVel);
 	free(hPos);
-	free(mass);
+	free(hmass);
 }
 
 //planetFill: Fill the first NUMPLANETS+1 entries of the entity arrays with an estimation
@@ -47,7 +47,7 @@ void planetFill(){
 			hPos[i][j]=data[i][j];
 			hVel[i][j]=data[i][j+3];
 		}
-		mass[i]=data[i][6];
+		hmass[i]=data[i][6];
 	}
 }
 
@@ -65,7 +65,7 @@ void randomFill(int start, int count)
 		{
 			hVel[i][j] = (double)rand() / RAND_MAX * MAX_DISTANCE * 2 - MAX_DISTANCE;
 			hPos[i][j] = (double)rand() / RAND_MAX * MAX_VELOCITY * 2 - MAX_VELOCITY;
-			mass[i] = (double)rand() / RAND_MAX * MAX_MASS;
+			hmass[i] = (double)rand() / RAND_MAX * MAX_MASS;
 		}
 	}
 }
@@ -85,7 +85,7 @@ void printSystem(FILE* handle){
 		for (j=0;j<3;j++){
 			fprintf(handle,"%lf,",hVel[i][j]);
 		}
-		fprintf(handle,"),m=%lf\n",mass[i]);
+		fprintf(handle,"),m=%lf\n",hmass[i]);
 	}
 }
 
