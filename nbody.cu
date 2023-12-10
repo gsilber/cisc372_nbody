@@ -11,6 +11,10 @@
 vector3 *hVel, *d_hVel;
 vector3 *hPos, *d_hPos;
 double *hmass, *d_hmass;
+vector3 *d_hAccels;
+
+//FIXME: Remove this when done since it is for debug
+vector3 *hAccels;
 
 //initHostMemory: Create storage for numObjects entities in our system
 //Parameters: numObjects: number of objects to allocate
@@ -21,16 +25,24 @@ void initHostMemory(int numObjects)
 	hVel = (vector3 *)malloc(sizeof(vector3) * numObjects);
 	hPos = (vector3 *)malloc(sizeof(vector3) * numObjects);
 	hmass = (double *)malloc(sizeof(double) * numObjects);
+
+    //FIXME: Remove this when done since it is for debug
+    hAccels = (vector3 *)malloc(sizeof(vector3) * numObjects * numObjects);
+
 }
 
 void initDeviceMemory(int numObjects)
 {
     cudaMalloc((void**)&d_hVel, sizeof(vector3) * numObjects);
     cudaMemcpy(d_hVel, hVel, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
+    
     cudaMalloc((void**)&d_hPos, sizeof(vector3) * numObjects);
     cudaMemcpy(d_hPos, hPos, sizeof(vector3) * numObjects, cudaMemcpyHostToDevice);
+    
     cudaMalloc((void**)&d_hmass, sizeof(double) * numObjects);
     cudaMemcpy(d_hmass, hmass, sizeof(double) * numObjects, cudaMemcpyHostToDevice);
+
+    cudaMalloc((void**)&d_hAccels, sizeof(vector3) * numObjects * numObjects);
 }
 
 //freeHostMemory: Free storage allocated by a previous call to initHostMemory

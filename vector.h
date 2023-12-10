@@ -6,5 +6,9 @@ typedef double vector3[3];
 extern vector3 *hVel, *d_hVel;
 extern vector3 *hPos, *d_hPos;
 extern double *hmass, *d_hmass;
+extern vector3 *d_hAccels;
+
+//FIXME: Remove this when done since it is for debug
+extern vector3 *hAccels;
 
 #endif

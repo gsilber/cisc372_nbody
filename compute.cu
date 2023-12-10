@@ -5,12 +5,14 @@
 
 #include <stdio.h>
 
-__global__ void test_kernel(vector3 *vel, vector3* pos, double* mass) {
+__global__ void test_kernel(vector3 *accels, vector3* pos, double* mass) {
     //int threadIndex = threadIdx.x;
 
-    vel[threadIdx.x][0] = vel[threadIdx.x][0] + 1.0;
+    accels[threadIdx.x * NUMENTITIES + threadIdx.y][threadIdx.z] = threadIdx.z;
+
+/*     vel[threadIdx.x][0] = vel[threadIdx.x][0] + 1.0;
     pos[threadIdx.x][0] = pos[threadIdx.x][0] + 2.0;
-    mass[threadIdx.x] = mass[threadIdx.x] + 3.0;
+    mass[threadIdx.x] = mass[threadIdx.x] + 3.0; */
 }
 
 //compute: Updates the positions and locations of the objects in the system based on gravity.
@@ -19,13 +21,33 @@ __global__ void test_kernel(vector3 *vel, vector3* pos, double* mass) {
 //Side Effect: Modifies the hPos and hVel arrays with the new positions and accelerations after 1 INTERVAL
 void compute(){
 
-    test_kernel<<<1,NUMENTITIES>>>(d_hVel, d_hPos, d_hmass);
+    dim3 blockSize = dim3(16, 16, 3);
+    dim3 gridSize = dim3(1, 1, 1);
 
-    cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    test_kernel<<<gridSize, blockSize>>>(d_hAccels, d_hPos, d_hmass);
+
+    cudaError_t cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "CUDA API call failed: %s\n", cudaGetErrorString(cudaStatus));
+        // Handle the error, throw an exception, or take appropriate action
+    }
+
+    cudaMemcpy(hAccels, d_hAccels, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
+
+    for(int i = 0; i < NUMENTITIES * NUMENTITIES; i ++) {
+        
+        if(i % NUMENTITIES == 0)
+            printf("\n");
+
+        printf("%.1f ", hAccels[i][2]);
+    }
+    printf("\n");
+
+/*     cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
     cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
     cudaMemcpy(hmass, d_hmass, sizeof(double) * NUMENTITIES, cudaMemcpyDeviceToHost);
 
-    printf("hVel: %.1f | hPos: %.1f | hmass: %.1f\n\n", hVel[1][0], hPos[1][0], hmass[1]);
+    printf("hVel: %.1f | hPos: %.1f | hmass: %.1f\n\n", hVel[1][0], hPos[1][0], hmass[1]); */
 
 
 /* 	//make an acceleration matrix which is NUMENTITIES squared in size;
