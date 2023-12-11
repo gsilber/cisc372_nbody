@@ -51,8 +51,12 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     int blIdx = blockIdx.x;
     int vIdx = blockIdx.y;
 
-
     int gIdx = (blIdx * NUMENTITIES) + thIdx;
+
+    if (thIdx == 0) {
+        //out[blIdx][vIdx] = shArr[0];
+        out[blockIdx.x][blockIdx.y] = blockDim.x;
+    }
 
     __shared__ double shArr[SUM_TOTAL_THREADS * 2];
     __shared__ int offset;
@@ -190,7 +194,6 @@ void compute(){
         printf("CUDA error: %s\n", cudaGetErrorString(cudaError));
     }
     #endif
-
 
     blockSize = dim3(VECTORSIZE, 1, 1);
     gridSize = dim3(NUMENTITIES, 1, 1);
