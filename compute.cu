@@ -187,7 +187,7 @@ void compute(){
 
     cudaError_t cudaError = cudaGetLastError();
     if (cudaError != cudaSuccess) {
-        printf("CUDA error: %s at %s:%d\n", cudaGetErrorString(cudaError));
+        printf("CUDA error: %s\n", cudaGetErrorString(cudaError));
     }
     #endif
 
