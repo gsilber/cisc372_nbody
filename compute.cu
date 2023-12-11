@@ -86,7 +86,7 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     }
 
     if (thIdx == 0) {
-        *out[blIdx][vIdx] = shArr[0][vIdx];
+        out[blIdx][vIdx] = shArr[0][vIdx];
     }
 }
 
@@ -163,7 +163,7 @@ void compute(){
     blockSize = dim3(SUM_TOTAL_THREADS, 1, 1);
 
     //sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
-    sumOneVectorComponentPerBlock<<gridSize, blockSize>>>(d_hAccels, d_output);
+    sumOneVectorComponentPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output);
 /*     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
     for(int i = 0; i < NUMENTITIES; i++) {
         h_output[i][0] = 0.0;
