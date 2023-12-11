@@ -43,6 +43,53 @@ __global__ void compute_accels(vector3 *accels, vector3* pos, double* mass) {
     }
 }
 
+__global__ sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
+    
+    int thIdx = threadIdx.x;
+    int blIdx = blockIdx.x;
+    int vIdx = blockIdx.y;
+
+
+    int gIdx = (blIdx * NUMENTITIES) + thIdx
+
+    __shared__ double shArr[SUM_TOTAL_THREADS * 2];
+    __shared__ int offset;
+
+    shArr[gIdx] = thIdx < NUMENTITIES ? gArr[gIdx][vIdx] : 0;
+
+    if(thIdx == 0) {
+        offset = SUM_TOTAL_THREADS;
+    }
+
+    while (offset < NUMENTITIES) {
+        //fill the 2nd half with new data from global (0s if we run out of new data)
+        shArr[thIdx + NUMENTITIES] = thIdx + offset < NUMENTITIES ? gArr[gIdx + offset][vIdx] : 0;
+        __syncthreads();
+
+        if(thIdx == 0) {
+            offset += SUM_TOTAL_THREADS;
+        }
+
+        double sum = shArr[2 * thIdx] + shArr[(2 * thIdx) + 1];
+        __syncthreads();
+
+        shArr[thIdx] = sum;
+    }
+    __syncthreads();
+
+    for(int stride = 1; stride < SUM_TOTAL_THREADS; stride*=2) {
+        int arrIdx = thIdx * stride * 2;
+        if(arrIdx + stride < SUM_TOTAL_THREADS) {
+            shArr[arrIdx] += shArr[arrIdx + stride];
+        }
+        __syncthreads();
+    }
+
+    if (thIdx == 0) {
+        *out[blIdx][vIdx] = shArr[0][vIdx];
+    }
+}
+
 __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize) {
 
     __shared__ vector3 shArr[SUM_TOTAL_THREADS * 2];
@@ -115,8 +162,8 @@ void compute(){
     gridSize = dim3(NUMENTITIES, VECTORSIZE, 1);
     blockSize = dim3(SUM_TOTAL_THREADS, 1, 1);
 
-    sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
-
+    //sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
+    sumOneVectorComponentPerBlock<<gridSize, blockSize>>>(d_hAccels, d_output);
 /*     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
     for(int i = 0; i < NUMENTITIES; i++) {
         h_output[i][0] = 0.0;

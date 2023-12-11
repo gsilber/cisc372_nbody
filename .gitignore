@@ -3,3 +3,4 @@ hello.cu
 serial
 parallel
 nbody
+*.vscode*
