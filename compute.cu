@@ -86,7 +86,7 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     }
 
     if (thIdx == 0) {
-        out[blIdx][vIdx] = shArr[0][vIdx];
+        out[blIdx][vIdx] = shArr[0];
     }
 }
 
