@@ -52,14 +52,15 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
 
     int gIdx = (blIdx * NUMENTITIES) + thIdx;
 
-    __shared__ double shArr[SUM_TOTAL_THREADS * 2];
+    __shared__ double shArr[blockSize.x * 2];
     __shared__ int offset;
 
-    shArr[gIdx] = thIdx < NUMENTITIES ? gArr[gIdx][vIdx] : 0;
+    shArr[thIdx] = thIdx < NUMENTITIES ? gArr[gIdx][vIdx] : 0;
 
     if(thIdx == 0) {
-        offset = SUM_TOTAL_THREADS;
+        offset = blockSize.x;
     }
+    __syncthreads();
 
     while (offset < NUMENTITIES) {
         //fill the 2nd half with new data from global (0s if we run out of new data)
@@ -67,7 +68,7 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
         __syncthreads();
 
         if(thIdx == 0) {
-            offset += SUM_TOTAL_THREADS;
+            offset += blockSize.x;
         }
 
         double sum = shArr[2 * thIdx] + shArr[(2 * thIdx) + 1];
@@ -77,9 +78,9 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     }
     __syncthreads();
 
-    for(int stride = 1; stride < SUM_TOTAL_THREADS; stride*=2) {
+    for(int stride = 1; stride < blockSize.x; stride*=2) {
         int arrIdx = thIdx * stride * 2;
-        if(arrIdx + stride < SUM_TOTAL_THREADS) {
+        if(arrIdx + stride < blockSize.x) {
             shArr[arrIdx] += shArr[arrIdx + stride];
         }
         __syncthreads();
@@ -108,7 +109,6 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
 
         if (threadIdx.x == 0)
             offset += SUM_TOTAL_THREADS;
-        __syncthreads();
  
         double sum = shArr[2 * threadIdx.x][blockIdx.y] + shArr[2 * threadIdx.x + 1][blockIdx.y];
         __syncthreads();
@@ -128,6 +128,7 @@ __global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize)
     __syncthreads();
     if (threadIdx.x == 0) {
         out[blockIdx.x][blockIdx.y] = shArr[0][blockIdx.y];
+        out[blockIdx.x][blockIdx.y] = blockDim.x;
     }
 }
 
