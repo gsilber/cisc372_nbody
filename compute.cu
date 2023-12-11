@@ -164,6 +164,7 @@ void compute(){
     blockSize = dim3(SUM_TOTAL_THREADS, 1, 1);
     gridSize = dim3(NUMENTITIES, VECTORSIZE, 1);
 
+    cudaDeviceSynchronize();
     //sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
     sumOneVectorComponentPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output);
 /*     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
