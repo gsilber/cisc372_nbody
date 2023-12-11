@@ -174,7 +174,9 @@ void compute(){
         h_output[i][2] = 0.0;
     }
     cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-
+    for(int i = 0; i < NUMENTITIES; i++) {
+        printf("%.32f %.32f %.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
+    }
 /*     for(int i = 0; i < NUMENTITIES; i++) {
         for (int k=0;k<3;k++){
             hVel[i][k]+=h_output[i][k]*INTERVAL;
