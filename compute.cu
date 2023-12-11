@@ -89,6 +89,7 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
         }
     }
 
+    __syncthreads();
     if (thIdx == 0) {
         //out[blIdx][vIdx] = shArr[0];
         out[blockIdx.x][blockIdx.y] = blockDim.x;
