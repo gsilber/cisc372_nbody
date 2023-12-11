@@ -48,7 +48,7 @@ void compute(){
 				accel_sum[k]+=accels[i][j][k];
 		}
 
-        //printf("%32.32f %32.32f %32.32f\n", accel_sum[0], accel_sum[1], accel_sum[2]);
+        printf("%32.32f %32.32f %32.32f\n", accel_sum[0], accel_sum[1], accel_sum[2]);
 		//compute the new velocity based on the acceleration and time interval
 		//compute the new position based on the velocity and time interval
 		for (k=0;k<3;k++){
