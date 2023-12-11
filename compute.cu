@@ -167,13 +167,13 @@ void compute(){
     cudaDeviceSynchronize();
     //sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
     sumOneVectorComponentPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output);
-/*     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
+    vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
     for(int i = 0; i < NUMENTITIES; i++) {
         h_output[i][0] = 0.0;
         h_output[i][1] = 0.0;
         h_output[i][2] = 0.0;
     }
-    cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost); */
+    cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 
 /*     for(int i = 0; i < NUMENTITIES; i++) {
         for (int k=0;k<3;k++){
