@@ -175,11 +175,9 @@ void compute(){
     cudaError_t cudaError = cudaGetLastError();
     if (cudaError != cudaSuccess) {
         fprintf(stderr, "CUDA error: %s at %s:%d\n", cudaGetErrorString(cudaError), __FILE__, __LINE__);
-        exit(EXIT_FAILURE);
     }
 
     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
-
 
     for(int i = 0; i < NUMENTITIES; i++) {
         h_output[i][0] = 0.0;
