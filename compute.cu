@@ -82,11 +82,11 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     __syncthreads();
 
     for(int stride = 1; stride < SUM_TOTAL_THREADS; stride*=2) {
+        __syncthreads();
         int arrIdx = thIdx * stride * 2;
         if(arrIdx + stride < SUM_TOTAL_THREADS) {
             shArr[arrIdx] += shArr[arrIdx + stride];
         }
-        __syncthreads();
     }
 
     if (thIdx == 0) {
