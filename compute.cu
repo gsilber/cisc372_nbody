@@ -58,6 +58,8 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
         out[blockIdx.x][blockIdx.y] = blockDim.x;
     }
 
+    return;
+
     __shared__ double shArr[SUM_TOTAL_THREADS * 2];
     __shared__ int offset;
 
