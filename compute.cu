@@ -172,21 +172,22 @@ void compute(){
     cudaDeviceSynchronize();
 
     #ifdef SUMDEBUG
-    cudaError_t cudaError = cudaGetLastError();
-    if (cudaError != cudaSuccess) {
-        fprintf(stderr, "CUDA error: %s at %s:%d\n", cudaGetErrorString(cudaError), __FILE__, __LINE__);
-    }
 
     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
 
     for(int i = 0; i < NUMENTITIES; i++) {
-        h_output[i][0] = 0.0;
-        h_output[i][1] = 0.0;
-        h_output[i][2] = 0.0;
+        h_output[i][0] = -1.0;
+        h_output[i][1] = -1.0;
+        h_output[i][2] = -1.0;
     }
     cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
     for(int i = 0; i < NUMENTITIES; i++) {
         printf("%.32f %.32f %.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
+    }
+
+    cudaError_t cudaError = cudaGetLastError();
+    if (cudaError != cudaSuccess) {
+        fprintf(stderr, "CUDA error: %s at %s:%d\n", cudaGetErrorString(cudaError), __FILE__, __LINE__);
     }
     #endif
 
