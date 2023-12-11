@@ -4,6 +4,8 @@
 #include "config.h"
 
 #include <stdio.h>
+#define SUMDEBUG 1
+
 
 #define BLOCK_WIDTH_ACCELS 16
 
@@ -167,7 +169,18 @@ void compute(){
     cudaDeviceSynchronize();
     //sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
     sumOneVectorComponentPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output);
+    cudaDeviceSynchronize();
+
+    #ifdef SUMDEBUG
+    cudaError_t cudaError = cudaGetLastError();
+    if (cudaError != cudaSuccess) {
+        fprintf(stderr, "CUDA error: %s at %s:%d\n", cudaGetErrorString(cudaError), __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
+    }
+
     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
+
+
     for(int i = 0; i < NUMENTITIES; i++) {
         h_output[i][0] = 0.0;
         h_output[i][1] = 0.0;
@@ -177,13 +190,8 @@ void compute(){
     for(int i = 0; i < NUMENTITIES; i++) {
         printf("%.32f %.32f %.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
     }
-/*     for(int i = 0; i < NUMENTITIES; i++) {
-        for (int k=0;k<3;k++){
-            hVel[i][k]+=h_output[i][k]*INTERVAL;
-            hPos[i][k]+=hVel[i][k]*INTERVAL;
-        }
-        printf("%32.32f %32.32f %32.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);
-    } */
+    #endif
+
 
     blockSize = dim3(VECTORSIZE, 1, 1);
     gridSize = dim3(NUMENTITIES, 1, 1);
