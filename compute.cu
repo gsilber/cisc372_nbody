@@ -81,13 +81,6 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     }
     __syncthreads();
 
-    if (thIdx == 0) {
-        //out[blIdx][vIdx] = shArr[0];
-        out[blockIdx.x][blockIdx.y] = blockDim.x;
-    }
-
-    return;
-
     for(int stride = 1; stride < SUM_TOTAL_THREADS; stride*=2) {
         int arrIdx = thIdx * stride * 2;
         if(arrIdx + stride < SUM_TOTAL_THREADS) {
@@ -95,6 +88,13 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
         }
         __syncthreads();
     }
+
+    if (thIdx == 0) {
+        //out[blIdx][vIdx] = shArr[0];
+        out[blockIdx.x][blockIdx.y] = blockDim.x;
+    }
+
+    return;
 
     if (thIdx == 0) {
         out[blIdx][vIdx] = shArr[0];
