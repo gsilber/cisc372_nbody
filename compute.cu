@@ -43,14 +43,14 @@ __global__ void compute_accels(vector3 *accels, vector3* pos, double* mass) {
     }
 }
 
-__global__ sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
+__global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     
     int thIdx = threadIdx.x;
     int blIdx = blockIdx.x;
     int vIdx = blockIdx.y;
 
 
-    int gIdx = (blIdx * NUMENTITIES) + thIdx
+    int gIdx = (blIdx * NUMENTITIES) + thIdx;
 
     __shared__ double shArr[SUM_TOTAL_THREADS * 2];
     __shared__ int offset;
