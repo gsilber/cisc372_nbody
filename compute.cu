@@ -5,13 +5,13 @@
 
 #include <stdio.h>
 
-#define DEBUGACCEL 1
-#define DEBUGSUM 1
+//#define DEBUGACCEL 1
+//#define DEBUGSUM 1
 
 
 #define BLOCK_WIDTH_ACCELS 16
 
-#define SUM_TOTAL_THREADS 256
+#define SUM_TOTAL_THREADS 1
 
 // DO NOT CHANGE THE VECTOR SIZE
 #define VECTORSIZE 3
@@ -47,77 +47,19 @@ __global__ void compute_accels(vector3 *accels, vector3* pos, double* mass) {
     }
 }
 
-/* _global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
-    
-    int thIdx = threadIdx.x;
-    int blIdx = blockIdx.x;
-    int vIdx = blockIdx.y;
-
-    int gIdx = (blIdx * NUMENTITIES) + thIdx;
-
-
-
+__global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out) {
     __shared__ double shArr[SUM_TOTAL_THREADS * 2];
     __shared__ int offset;
 
-    shArr[thIdx] = thIdx < NUMENTITIES ? gArr[gIdx][vIdx] : 0;
-
-    if(thIdx == 0) {
-        offset = SUM_TOTAL_THREADS;
-    }
-    __syncthreads();
-
-    while (offset < NUMENTITIES) {
-        //fill the 2nd half with new data from global (0s if we run out of new data)
-        shArr[thIdx + NUMENTITIES] = thIdx + offset < NUMENTITIES ? gArr[gIdx + offset][vIdx] : 0;
-        __syncthreads();
-
-        if(thIdx == 0) {
-            offset += SUM_TOTAL_THREADS;
-        }
-
-        double sum = shArr[2 * thIdx] + shArr[(2 * thIdx) + 1];
-        __syncthreads();
-
-        shArr[thIdx] = sum;
-    }
-    __syncthreads();
-
-    for(int stride = 1; stride < SUM_TOTAL_THREADS; stride*=2) {
-        __syncthreads();
-        int arrIdx = thIdx * stride * 2;
-        if(arrIdx + stride < SUM_TOTAL_THREADS) {
-            shArr[arrIdx] += shArr[arrIdx + stride];
-        }
-    }
-
-    __syncthreads();
-    if (thIdx == 0) {
-        //out[blIdx][vIdx] = shArr[0];
-        out[blockIdx.x][blockIdx.y] = blockDim.x;
-    }
-
-    return;
-
-    if (thIdx == 0) {
-        out[blIdx][vIdx] = shArr[0];
-        out[blockIdx.x][blockIdx.y] = blockDim.x;
-    }
-} */
-
-__global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out, int arraySize) {
-    __shared__ double shArr[SUM_TOTAL_THREADS * 2];
-    __shared__ int offset;
-
-    shArr[threadIdx.x] = threadIdx.x < arraySize ? gArr[blockIdx.x * arraySize + threadIdx.x][blockIdx.y] : 0;
+    shArr[threadIdx.x] = threadIdx.x < NUMENTITIES ? gArr[blockIdx.x * NUMENTITIES + threadIdx.x][blockIdx.y] : 0;
 
     if (threadIdx.x == 0)
         offset = blockDim.x;
     __syncthreads();
 
-    while (offset < arraySize) {
+    while (offset < NUMENTITIES) {
 
-        shArr[threadIdx.x + SUM_TOTAL_THREADS] = threadIdx.x + offset < arraySize ? gArr[blockIdx.x * arraySize + threadIdx.x + offset][blockIdx.y] : 0;
+        shArr[threadIdx.x + SUM_TOTAL_THREADS] = threadIdx.x + offset < NUMENTITIES ? gArr[blockIdx.x * NUMENTITIES + threadIdx.x + offset][blockIdx.y] : 0;
         __syncthreads();
 
         if (threadIdx.x == 0)
@@ -141,50 +83,9 @@ __global__ void sumOneVectorComponentPerBlock(vector3* gArr, vector3* out, int a
     __syncthreads();
     if (threadIdx.x == 0) {
         out[blockIdx.x][blockIdx.y] = shArr[0];
-        //out[blockIdx.x][blockIdx.y] = blockDim.x;
     }
 }
 
-__global__ void sumOneVectorPerBlock(vector3 *gArr, vector3 *out, int arraySize) {
-
-    __shared__ vector3 shArr[SUM_TOTAL_THREADS * 2];
-    __shared__ int offset;
-
-    shArr[threadIdx.x][blockIdx.y] = threadIdx.x < arraySize ? gArr[blockIdx.x * arraySize + threadIdx.x][blockIdx.y] : 0;
-
-    if (threadIdx.x == 0)
-        offset = blockDim.x;
-    __syncthreads();
-
-    while (offset < arraySize) {
-
-        shArr[threadIdx.x + SUM_TOTAL_THREADS][blockIdx.y] = threadIdx.x + offset < arraySize ? gArr[blockIdx.x * arraySize + threadIdx.x + offset][blockIdx.y] : 0;
-        __syncthreads();
-
-        if (threadIdx.x == 0)
-            offset += SUM_TOTAL_THREADS;
- 
-        double sum = shArr[2 * threadIdx.x][blockIdx.y] + shArr[2 * threadIdx.x + 1][blockIdx.y];
-        __syncthreads();
-
-        shArr[threadIdx.x][blockIdx.y] = sum;
-    }
-    __syncthreads();
-
-    for (int stride = 1; stride < SUM_TOTAL_THREADS; stride *= 2) {
-        __syncthreads();
-        int arrIdx = threadIdx.x * stride * 2;
-        if (arrIdx + stride < SUM_TOTAL_THREADS) {
-            shArr[arrIdx][blockIdx.y] += shArr[arrIdx + stride][blockIdx.y];
-        }
-    }
-
-    __syncthreads();
-    if (threadIdx.x == 0) {
-        out[blockIdx.x][blockIdx.y] = shArr[0][blockIdx.y];
-        out[blockIdx.x][blockIdx.y] = blockDim.x;
-    }
-}
 
 __global__ void advance_time(vector3* accel, vector3* vel, vector3* pos) {
     vel[blockIdx.x][threadIdx.x] += accel[blockIdx.x][threadIdx.x]*INTERVAL;
@@ -220,18 +121,14 @@ void compute(){
 
     cudaDeviceSynchronize();
     //sumOneVectorPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
-    sumOneVectorComponentPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output, NUMENTITIES);
+
+    sumOneVectorComponentPerBlock<<<gridSize, blockSize>>>(d_hAccels, d_output);
     cudaDeviceSynchronize();
 
     #ifdef DEBUGSUM
     printf("printing sums\n");
     vector3 *h_output = (vector3*)malloc(sizeof(vector3) * NUMENTITIES);
 
-    for(int i = 0; i < NUMENTITIES; i++) {
-        h_output[i][0] = -1.0;
-        h_output[i][1] = -1.0;
-        h_output[i][2] = -1.0;
-    }
     cudaMemcpy(h_output, d_output, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
     for(int i = 0; i < NUMENTITIES; i++) {
         printf("%.32f %.32f %.32f\n", h_output[i][0], h_output[i][1], h_output[i][2]);

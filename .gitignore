@@ -4,3 +4,4 @@ serial
 parallel
 nbody
 *.vscode*
+silberReduction.c

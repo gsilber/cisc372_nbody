@@ -4,8 +4,8 @@
 #include "config.h"
 
 #include <stdio.h>
-#define DEBUGACCEL 1
-#define DEBUGSUM 1
+//#define DEBUGACCEL 1
+//#define DEBUGSUM 1
 
 
 //compute: Updates the positions and locations of the objects in the system based on gravity.
